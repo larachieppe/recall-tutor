@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AnswerRecord, Feedback, Question } from "@/lib/types";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
+import { PillButton } from "@/components/ui";
 
 interface Props {
   questions: Question[];
@@ -50,30 +51,39 @@ export default function StudyScreen({
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
+    <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
       {/* progress */}
-      <div className="mb-6">
-        <div className="mb-2 flex items-center justify-between text-[13px]" style={{ color: "var(--muted)" }}>
-          <span>
+      <div className="mb-7">
+        <div
+          className="mb-2.5 flex items-center justify-between text-[13px]"
+          style={{ color: "var(--muted)" }}
+        >
+          <span className="font-semibold">
             Question {index + 1} of {questions.length}
           </span>
-          <span className="rounded-full px-2 py-0.5" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+          <span
+            className="rounded-full px-3 py-1 font-semibold tint"
+            style={{ color: "var(--blue)" }}
+          >
             {QUESTION_TYPE_LABELS[question.type]} · {question.topic}
           </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
+        <div
+          className="h-1.5 w-full overflow-hidden rounded-full"
+          style={{ background: "var(--line)" }}
+        >
           <div
             className="h-full rounded-full transition-all"
             style={{
               width: `${((index + (feedback ? 1 : 0)) / questions.length) * 100}%`,
-              background: "var(--accent)",
+              background: "var(--blue)",
             }}
           />
         </div>
       </div>
 
-      <div className="panel rounded-xl p-6">
-        <h2 className="serif text-[22px] font-semibold leading-snug">
+      <div className="panel rounded-2xl p-7">
+        <h2 className="text-[24px] font-extrabold leading-snug tracking-tight md:text-[26px]">
           {question.question}
         </h2>
 
@@ -83,43 +93,43 @@ export default function StudyScreen({
           disabled={!!feedback || grading}
           placeholder="Type your answer in your own words…"
           rows={6}
-          className="mt-5 w-full resize-y rounded-lg border px-3 py-3 text-[15px] leading-relaxed outline-none focus:ring-2 disabled:opacity-70"
-          style={{ borderColor: "var(--line)", background: "var(--bg)" }}
+          className="mt-6 w-full resize-y rounded-xl border px-4 py-3.5 text-[15px] leading-relaxed outline-none transition focus:border-[var(--blue)] disabled:opacity-70"
+          style={{ borderColor: "var(--line)", background: "var(--panel)" }}
         />
 
         {!feedback && (
-          <button
-            onClick={submit}
-            disabled={grading}
-            className="mt-4 rounded-lg px-5 py-2.5 text-[14px] font-semibold text-white disabled:opacity-50"
-            style={{ background: "var(--accent)" }}
-          >
-            {grading ? "Grading…" : "Submit answer"}
-          </button>
+          <div className="mt-5">
+            <PillButton onClick={submit} disabled={grading}>
+              {grading ? "Grading…" : "Submit answer"}
+            </PillButton>
+          </div>
         )}
 
         {error && (
-          <p className="mt-3 text-[14px]" style={{ color: "#c0392b" }}>
+          <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
             {error}
           </p>
         )}
       </div>
 
-      {feedback && (
-        <FeedbackCard feedback={feedback} question={question} />
-      )}
+      {feedback && <FeedbackCard feedback={feedback} question={question} />}
 
       {feedback && (
-        <button
-          onClick={advance}
-          className="mt-5 w-full rounded-xl px-4 py-3 text-[15px] font-semibold text-white"
-          style={{ background: "var(--accent)" }}
-        >
-          {isLast ? "See results" : "Next question"}
-        </button>
+        <div className="mt-6">
+          <PillButton onClick={advance} full>
+            {isLast ? "See results" : "Next question"}
+          </PillButton>
+        </div>
       )}
     </div>
   );
+}
+
+function statusColors(status: "met" | "partial" | "missing") {
+  if (status === "met")
+    return { bg: "rgba(23,189,131,0.12)", fg: "var(--mint)" };
+  if (status === "partial") return { bg: "#fbf1dc", fg: "var(--amber)" };
+  return { bg: "#f7dfdb", fg: "var(--danger)" };
 }
 
 function FeedbackCard({
@@ -131,56 +141,45 @@ function FeedbackCard({
 }) {
   const [showSource, setShowSource] = useState(false);
   return (
-    <div className="panel mt-5 rounded-xl p-6">
-      <div className="mb-4 flex items-center gap-3">
+    <div className="panel mt-6 rounded-2xl p-7">
+      <div className="mb-5 flex items-center gap-3">
         <ScoreBadge score={feedback.score} />
         <div className="flex flex-wrap gap-1.5">
-          {feedback.criteria.map((c, i) => (
-            <span
-              key={i}
-              title={`${c.description} — ${c.points_awarded}/${c.points_possible}`}
-              className="rounded px-1.5 py-0.5 text-[11px] font-medium"
-              style={{
-                background:
-                  c.status === "met"
-                    ? "var(--accent-soft)"
-                    : c.status === "partial"
-                      ? "#fdf0d5"
-                      : "#f4d9d5",
-                color:
-                  c.status === "met"
-                    ? "var(--accent)"
-                    : c.status === "partial"
-                      ? "#8a6d1a"
-                      : "#a33227",
-              }}
-            >
-              {c.points_awarded}/{c.points_possible}
-            </span>
-          ))}
+          {feedback.criteria.map((c, i) => {
+            const col = statusColors(c.status);
+            return (
+              <span
+                key={i}
+                title={`${c.description} — ${c.points_awarded}/${c.points_possible}`}
+                className="rounded-md px-2 py-1 text-[11px] font-bold"
+                style={{ background: col.bg, color: col.fg }}
+              >
+                {c.points_awarded}/{c.points_possible}
+              </span>
+            );
+          })}
         </div>
       </div>
 
       <Block title="What you got right" body={feedback.correct} />
       <Block title="What was missing" body={feedback.missing} />
-      {feedback.incorrect && feedback.incorrect.trim().toLowerCase() !== "none." && (
-        <Block title="Incorrect claims" body={feedback.incorrect} />
-      )}
+      {feedback.incorrect &&
+        feedback.incorrect.trim().toLowerCase() !== "none." && (
+          <Block title="Incorrect claims" body={feedback.incorrect} />
+        )}
       <Block title="Stronger answer" body={feedback.improved_answer} accent />
-      {feedback.follow_up && (
-        <Block title="Next step" body={feedback.follow_up} />
-      )}
+      {feedback.follow_up && <Block title="Next step" body={feedback.follow_up} />}
 
       <button
         onClick={() => setShowSource((s) => !s)}
-        className="mt-2 text-[13px] font-medium accent-text"
+        className="mt-1 text-[13px] font-semibold accent-text"
       >
         {showSource ? "Hide source passage" : "Show source passage"}
       </button>
       {showSource && (
         <blockquote
-          className="mt-2 rounded-lg border-l-2 px-3 py-2 text-[14px] italic"
-          style={{ borderColor: "var(--accent)", background: "var(--bg)", color: "var(--muted)" }}
+          className="mt-3 rounded-xl border-l-2 px-4 py-3 text-[14px] italic tint"
+          style={{ borderColor: "var(--blue)", color: "var(--muted)" }}
         >
           {question.source_excerpt}
         </blockquote>
@@ -200,10 +199,10 @@ function Block({
 }) {
   if (!body || !body.trim()) return null;
   return (
-    <div className="mb-3">
+    <div className="mb-4">
       <h3
-        className="mb-1 text-[12px] font-semibold uppercase tracking-wide"
-        style={{ color: accent ? "var(--accent)" : "var(--muted)" }}
+        className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.1em]"
+        style={{ color: accent ? "var(--blue)" : "var(--muted)" }}
       >
         {title}
       </h3>
@@ -215,15 +214,19 @@ function Block({
 function ScoreBadge({ score }: { score: number }) {
   const good = score >= 7;
   const mid = score >= 4 && score < 7;
-  const color = good ? "var(--accent)" : mid ? "#8a6d1a" : "#a33227";
-  const bg = good ? "var(--accent-soft)" : mid ? "#fdf0d5" : "#f4d9d5";
+  const fg = good ? "var(--mint)" : mid ? "var(--amber)" : "var(--danger)";
+  const bg = good
+    ? "rgba(23,189,131,0.12)"
+    : mid
+      ? "#fbf1dc"
+      : "#f7dfdb";
   return (
     <div
-      className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full text-[15px] font-bold"
-      style={{ background: bg, color }}
+      className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full text-[17px] font-extrabold"
+      style={{ background: bg, color: fg }}
     >
       {score}
-      <span className="text-[9px] font-medium opacity-70">/10</span>
+      <span className="text-[9px] font-semibold opacity-70">/10</span>
     </div>
   );
 }

@@ -1,25 +1,20 @@
 @import "tailwindcss";
 
+/* Ciklum-inspired light theme: deep royal blue + mint green on white,
+   near-black bold grotesque headings, blue→green gradient accents. */
 :root {
-  --bg: #f7f6f3;
+  --bg: #ffffff;
   --panel: #ffffff;
-  --ink: #1c1b1a;
-  --muted: #6b6b6b;
-  --line: #e6e3dd;
-  --accent: #0f766e;
-  --accent-soft: #d6f0ec;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16161a;
-    --panel: #1f1f24;
-    --ink: #ededed;
-    --muted: #a0a0a8;
-    --line: #33333b;
-    --accent: #2dd4bf;
-    --accent-soft: #123a36;
-  }
+  --tint: #f5f6ff; /* light blue-tinted surface */
+  --ink: #0d1030; /* near-black navy for headings/body */
+  --muted: #5b6478; /* slate for secondary text */
+  --line: #e7e8f2; /* hairline borders */
+  --blue: #0020bb; /* primary deep royal blue */
+  --blue-2: #1324bf;
+  --mint: #17bd83; /* green accent (readable on white) */
+  --mint-bright: #8cffc6;
+  --amber: #b7791f;
+  --danger: #c0392b;
 }
 
 html,
@@ -29,13 +24,21 @@ body {
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.serif {
-  font-family: Georgia, "Times New Roman", serif;
+/* blue → green headline emphasis, like Ciklum's hero */
+.gradient-text {
+  background: linear-gradient(95deg, #0020bb 0%, #2f6df0 48%, #17bd83 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-mark {
+  background: linear-gradient(135deg, #0020bb 0%, #17bd83 100%);
 }
 
 @layer utilities {
@@ -43,7 +46,10 @@ body {
     background: var(--panel);
     border: 1px solid var(--line);
   }
+  .tint {
+    background: var(--tint);
+  }
   .accent-text {
-    color: var(--accent);
+    color: var(--blue);
   }
 }

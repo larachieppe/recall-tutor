@@ -2,6 +2,7 @@
 
 import type { AnswerRecord } from "@/lib/types";
 import { topicMastery, weakTopics } from "@/lib/session";
+import { PillButton } from "@/components/ui";
 
 interface Props {
   records: AnswerRecord[];
@@ -28,18 +29,20 @@ export default function ResultsScreen({
   const strong = mastery.filter((t) => t.avgScore >= 7).map((t) => t.topic);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="serif text-3xl font-semibold">Session results</h1>
+    <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
+      <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">
+        Session results
+      </h1>
 
-      <section className="panel mt-6 rounded-xl p-6 text-center">
-        <div className="serif text-5xl font-bold accent-text">
-          {total}
-          <span className="text-2xl" style={{ color: "var(--muted)" }}>
+      <section className="panel mt-7 rounded-2xl p-8 text-center">
+        <div className="text-6xl font-extrabold tracking-tight">
+          <span className="gradient-text">{total}</span>
+          <span className="text-3xl" style={{ color: "var(--muted)" }}>
             {" "}
             / {max}
           </span>
         </div>
-        <p className="mt-1 text-[14px]" style={{ color: "var(--muted)" }}>
+        <p className="mt-2 text-[14px]" style={{ color: "var(--muted)" }}>
           {pct}% across {records.length} question
           {records.length === 1 ? "" : "s"}
         </p>
@@ -60,26 +63,36 @@ export default function ResultsScreen({
         />
       </section>
 
-      <section className="panel mt-5 rounded-xl p-5">
-        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+      <section className="panel mt-5 rounded-2xl p-6">
+        <h2
+          className="mb-4 text-[12px] font-bold uppercase tracking-[0.14em]"
+          style={{ color: "var(--muted)" }}
+        >
           By topic
         </h2>
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {mastery.map((t) => (
             <div key={t.topic}>
-              <div className="mb-1 flex items-center justify-between text-[14px]">
-                <span>{t.topic}</span>
+              <div className="mb-1.5 flex items-center justify-between text-[14px]">
+                <span className="font-medium">{t.topic}</span>
                 <span style={{ color: "var(--muted)" }}>
                   {t.avgScore.toFixed(1)}/10
                 </span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full"
+                style={{ background: "var(--line)" }}
+              >
                 <div
                   className="h-full rounded-full"
                   style={{
                     width: `${(t.avgScore / 10) * 100}%`,
                     background:
-                      t.avgScore >= 7 ? "var(--accent)" : t.avgScore >= 4 ? "#c99a2e" : "#c0503f",
+                      t.avgScore >= 7
+                        ? "var(--mint)"
+                        : t.avgScore >= 4
+                          ? "var(--amber)"
+                          : "var(--danger)",
                   }}
                 />
               </div>
@@ -88,28 +101,27 @@ export default function ResultsScreen({
         </div>
       </section>
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-7 flex flex-col items-center gap-3">
         {weak.length > 0 && (
-          <button
+          <PillButton
             onClick={() => onPracticeWeak(weak)}
             disabled={busy}
-            className="w-full rounded-xl px-4 py-3 text-[15px] font-semibold text-white disabled:opacity-50"
-            style={{ background: "var(--accent)" }}
+            full
           >
             {busy ? busyLabel : `Practice weak areas (${weak.length})`}
-          </button>
+          </PillButton>
         )}
-        <button
+        <PillButton
           onClick={onAnotherSet}
           disabled={busy}
-          className="w-full rounded-xl border px-4 py-3 text-[15px] font-semibold disabled:opacity-50"
-          style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+          variant="light"
+          full
         >
           {busy ? busyLabel : "Generate another set"}
-        </button>
+        </PillButton>
         <button
           onClick={onRestart}
-          className="w-full rounded-xl px-4 py-2.5 text-[14px] font-medium"
+          className="mt-1 text-[14px] font-semibold"
           style={{ color: "var(--muted)" }}
         >
           Start over with a new source
@@ -130,10 +142,13 @@ function TopicList({
   empty: string;
   tone: "strong" | "weak";
 }) {
-  const color = tone === "strong" ? "var(--accent)" : "#c0503f";
+  const color = tone === "strong" ? "var(--mint)" : "var(--danger)";
   return (
-    <div className="panel rounded-xl p-5">
-      <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+    <div className="panel rounded-2xl p-6">
+      <h2
+        className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em]"
+        style={{ color: "var(--muted)" }}
+      >
         {title}
       </h2>
       {topics.length === 0 ? (
@@ -141,11 +156,11 @@ function TopicList({
           {empty}
         </p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-2">
           {topics.map((t) => (
-            <li key={t} className="flex items-center gap-2 text-[14px]">
+            <li key={t} className="flex items-center gap-2.5 text-[14px]">
               <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
+                className="inline-block h-2 w-2 rounded-full"
                 style={{ background: color }}
               />
               {t}
