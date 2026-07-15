@@ -1,0 +1,34 @@
+{
+  "name": "recall-tutor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "@mozilla/readability": "^0.6.0",
+    "jsdom": "^27.0.1",
+    "mammoth": "^1.12.0",
+    "next": "^16.2.10",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "unpdf": "^1.6.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.19",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^5.9.3"
+  }
+}

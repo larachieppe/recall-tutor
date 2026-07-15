@@ -1,0 +1,20 @@
+# Render Blueprint — deploys this app as a Node web service.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: recall-tutor
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # Set this in the Render dashboard — it is NOT stored in the repo.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Optional: override the model (default is claude-opus-4-8).
+      # - key: ANTHROPIC_MODEL
+      #   value: claude-sonnet-5
+      - key: NODE_VERSION
+        value: 22.12.0
