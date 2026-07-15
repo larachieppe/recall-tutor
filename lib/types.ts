@@ -64,3 +64,16 @@ export interface SourceMeta {
   /** Character count of the extracted text, for display. */
   length: number;
 }
+
+export interface OverviewConcept {
+  term: string;
+  explanation: string;
+}
+
+/** Didactic study notes generated from the source, shown before practice. */
+export interface Overview {
+  headline: string;
+  summary: string;
+  key_concepts: OverviewConcept[];
+  takeaways: string[];
+}

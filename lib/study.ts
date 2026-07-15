@@ -6,6 +6,7 @@ import {
 import type {
   Feedback,
   GenerateConfig,
+  Overview,
   Question,
   QuestionType,
 } from "./types";
@@ -272,4 +273,63 @@ Grade the learner's answer now.`;
     0,
   );
   return { ...raw, score: Math.max(0, Math.min(10, Math.round(score))) };
+}
+
+// --- Didactic overview (study notes) -------------------------------------
+
+const overviewSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    headline: { type: "string" },
+    summary: { type: "string" },
+    key_concepts: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          term: { type: "string" },
+          explanation: { type: "string" },
+        },
+        required: ["term", "explanation"],
+      },
+    },
+    takeaways: { type: "array", items: { type: "string" } },
+  },
+  required: ["headline", "summary", "key_concepts", "takeaways"],
+} as const;
+
+const OVERVIEW_SYSTEM = `You are a tutor writing concise, didactic study notes from a source document to orient a learner before they practice.
+
+Explain the material in your OWN words — paraphrase and teach; do not copy long passages verbatim from the source.
+
+Produce:
+- headline: one sentence capturing what this source is about
+- summary: a short plain-language paragraph (3-5 sentences) of the overall content
+- key_concepts: 4-8 of the most important ideas, each with a clear one-to-two sentence explanation a learner could understand
+- takeaways: 3-6 short bullet points a learner should remember
+
+Cover only what the source supports; do not add outside facts. Return ONLY the JSON object matching the schema.`;
+
+export async function generateOverview(source: string): Promise<Overview> {
+  const truncated = source.slice(0, MAX_SOURCE_CHARS);
+
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4000,
+    output_config: {
+      effort: "low",
+      format: { type: "json_schema", schema: overviewSchema },
+    },
+    system: OVERVIEW_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `Write didactic study notes for this source.\n\nSOURCE DOCUMENT:\n"""\n${truncated}\n"""`,
+      },
+    ],
+  });
+
+  return parseJsonFromMessage<Overview>(message.content);
 }
