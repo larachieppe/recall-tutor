@@ -12,6 +12,7 @@ import type {
 } from "./types";
 import { QUESTION_TYPE_LABELS } from "./types";
 import { normalizeToTen } from "./rubric";
+import { assembleSource } from "./chunk";
 import { randomUUID } from "crypto";
 
 /** Keep prompts well under the context window; MVP-sized docs fit directly. */
@@ -108,17 +109,20 @@ export async function generateQuestions(
     ? `\nFocus especially on this area if the source covers it: ${config.focus.trim()}`
     : "";
 
-  const truncated = source.slice(0, MAX_SOURCE_CHARS);
+  const assembled = assembleSource(source, MAX_SOURCE_CHARS);
+  const coverageLine = assembled.truncated
+    ? `\nThe SOURCE below is long, so it is assembled from ${assembled.sections} sections spanning the ENTIRE document (separated by "----- (section break) -----"). Draw questions from across ALL sections — including the later ones — for broad coverage; do not focus only on the beginning.`
+    : "";
 
   const userPrompt = `${difficultyGuidance(config)}
 
 Generate exactly ${config.count} question(s). Distribute them across these question types:
 ${typeList}
-${focusLine}
+${focusLine}${coverageLine}
 
 SOURCE DOCUMENT:
 """
-${truncated}
+${assembled.text}
 """`;
 
   const message = await anthropic.messages.create({
@@ -314,7 +318,10 @@ Produce:
 Cover only what the source supports; do not add outside facts. Return ONLY the JSON object matching the schema.`;
 
 export async function generateOverview(source: string): Promise<Overview> {
-  const truncated = source.slice(0, MAX_SOURCE_CHARS);
+  const assembled = assembleSource(source, MAX_SOURCE_CHARS);
+  const note = assembled.truncated
+    ? " The source is assembled from sections spanning the whole document; summarize across all of it."
+    : "";
 
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -327,7 +334,7 @@ export async function generateOverview(source: string): Promise<Overview> {
     messages: [
       {
         role: "user",
-        content: `Write didactic study notes for this source.\n\nSOURCE DOCUMENT:\n"""\n${truncated}\n"""`,
+        content: `Write didactic study notes for this source.${note}\n\nSOURCE DOCUMENT:\n"""\n${assembled.text}\n"""`,
       },
     ],
   });

@@ -78,6 +78,11 @@ GitHub sign-in and Postgres sync are optional (see [Cloud sync](#cloud-sync-opti
 - `app/api/grade` — grades a free-text answer against that rubric criterion by
   criterion (not against one exact answer), so valid alternative wording gets
   credit.
+- **Long sources** — documents beyond ~58k characters are chunked by structure
+  (`lib/chunk.ts`) and a diverse, **whole-document-spanning** subset is selected,
+  so questions cover the *end* of a textbook or paper, not just the start.
+  (Dependency-free coverage selection; embeddings-based semantic clustering is a
+  planned enhancement.)
 
 ## YouTube videos
 
@@ -171,17 +176,20 @@ GitHub Actions runs the tests and build on every push/PR (`.github/workflows/ci.
 
 ## Roadmap
 
-Already shipped: optional Neon Postgres + Auth.js cross-device sync, YouTube
-transcripts, and audio/video transcription (Phase 1 — see
-[`docs/video-transcription-plan.md`](docs/video-transcription-plan.md)).
+Shipped: optional Neon Postgres + Auth.js cross-device sync; YouTube transcripts;
+audio/video transcription (Phase 1 — see
+[`docs/video-transcription-plan.md`](docs/video-transcription-plan.md));
+concept-mastery learner model + SM-2 spaced repetition (Progress dashboard);
+long-document handling (structure-aware chunking + whole-document coverage
+selection, replacing first-60k truncation).
 
 Next:
 
-- **Long-document retrieval** — structure-aware chunking + embeddings with
-  diversity-aware selection, instead of sending only the first ~60k characters.
-- **Concept-level mastery model** — track per-concept mastery from rubric
-  criteria and select the next question from the learner profile.
-- **Spaced repetition** — schedule individual concepts (SM-2 / FSRS) for review.
+- **Semantic retrieval** — embeddings-based clustering for even better coverage
+  on unstructured sources (current selection is structure/position-based and
+  dependency-free).
 - **Grading evaluation** — a hand-labeled benchmark comparing rubric grading to
   human grades (measured, not invented numbers).
-- **Streaming pipeline stages** and durable background jobs for long media.
+- **Per-question adaptive selection** driven by the mastery profile, and
+  streaming pipeline stages.
+- **Durable background jobs** for long media (transcription Phase 2).
