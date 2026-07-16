@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { AnswerRecord, Feedback, Question } from "@/lib/types";
+import type {
+  AnswerRecord,
+  CriterionResult,
+  Feedback,
+  Question,
+} from "@/lib/types";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { PillButton } from "@/components/ui";
+import { matchEvidence, evidenceIndices } from "@/lib/highlight";
 
 interface Props {
   questions: Question[];
@@ -174,16 +180,75 @@ function FeedbackCard({
         onClick={() => setShowSource((s) => !s)}
         className="mt-1 text-[13px] font-semibold accent-text"
       >
-        {showSource ? "Hide source passage" : "Show source passage"}
+        {showSource ? "Hide evidence" : "Show evidence"}
       </button>
       {showSource && (
-        <blockquote
-          className="mt-3 rounded-xl border-l-2 px-4 py-3 text-[14px] italic tint"
-          style={{ borderColor: "var(--blue)", color: "var(--muted)" }}
-        >
-          {question.source_excerpt}
-        </blockquote>
+        <EvidenceView
+          excerpt={question.source_excerpt}
+          criteria={feedback.criteria}
+        />
       )}
+    </div>
+  );
+}
+
+function EvidenceView({
+  excerpt,
+  criteria,
+}: {
+  excerpt: string;
+  criteria: CriterionResult[];
+}) {
+  const { sentences, criterionSentence } = matchEvidence(
+    excerpt,
+    criteria.map((c) => c.description),
+  );
+  const highlighted = evidenceIndices(criterionSentence);
+
+  return (
+    <div className="mt-3">
+      <blockquote
+        className="rounded-xl border-l-2 px-4 py-3 text-[14px] leading-relaxed"
+        style={{ borderColor: "var(--blue)", background: "var(--panel)" }}
+      >
+        {sentences.length === 0 ? (
+          <span style={{ color: "var(--muted)" }}>{excerpt}</span>
+        ) : (
+          sentences.map((s, i) => (
+            <span
+              key={i}
+              style={
+                highlighted.has(i)
+                  ? {
+                      background: "rgba(23,189,131,0.18)",
+                      borderRadius: "3px",
+                      padding: "1px 2px",
+                    }
+                  : { color: "var(--muted)" }
+              }
+            >
+              {s}{" "}
+            </span>
+          ))
+        )}
+      </blockquote>
+      <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+        Highlighted sentences are the source evidence for the rubric criteria.
+      </p>
+      <div className="mt-2 space-y-1">
+        {criteria.map((c, ci) =>
+          criterionSentence[ci] >= 0 ? (
+            <div key={ci} className="text-[13px] leading-snug">
+              <span className="font-semibold">{c.description}</span>
+              <span style={{ color: "var(--muted)" }}>
+                {" — “"}
+                {sentences[criterionSentence[ci]]}
+                {"”"}
+              </span>
+            </div>
+          ) : null,
+        )}
+      </div>
     </div>
   );
 }
