@@ -68,6 +68,8 @@ export interface SourceMeta {
 export interface OverviewConcept {
   term: string;
   explanation: string;
+  /** A concrete example or analogy that illustrates the concept. */
+  example: string;
 }
 
 /** Didactic study notes generated from the source, shown before practice. */

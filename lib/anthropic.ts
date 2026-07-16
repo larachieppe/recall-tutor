@@ -2,8 +2,11 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const anthropic = new Anthropic();
 
-/** Highest-quality default; override with ANTHROPIC_MODEL for lower cost. */
-export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
+/**
+ * Fast, capable default for an interactive tutor. Override with ANTHROPIC_MODEL
+ * (e.g. claude-opus-4-8 for max quality, claude-haiku-4-5 for lowest latency).
+ */
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
 /**
  * Pull the first text block out of a message and JSON.parse it. When adaptive

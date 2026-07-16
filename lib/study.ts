@@ -133,9 +133,8 @@ ${assembled.text}
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 16000,
-    thinking: { type: "adaptive" },
     output_config: {
-      effort: "medium",
+      effort: "low",
       format: { type: "json_schema", schema: questionSchema },
     },
     system: GENERATION_SYSTEM,
@@ -315,8 +314,9 @@ const overviewSchema = {
         properties: {
           term: { type: "string" },
           explanation: { type: "string" },
+          example: { type: "string" },
         },
-        required: ["term", "explanation"],
+        required: ["term", "explanation", "example"],
       },
     },
     takeaways: { type: "array", items: { type: "string" } },
@@ -324,17 +324,25 @@ const overviewSchema = {
   required: ["headline", "summary", "key_concepts", "takeaways"],
 } as const;
 
-const OVERVIEW_SYSTEM = `You are a tutor writing concise, didactic study notes from a source document to orient a learner before they practice.
+const OVERVIEW_SYSTEM = `You are a teacher writing a short lesson that TEACHES a topic to someone encountering it for the FIRST time — not a summary for an expert.
 
-Explain the material in your OWN words — paraphrase and teach; do not copy long passages verbatim from the source.
+Assume the learner has NO prior background. Build understanding from the ground up:
+- Explain ideas in plain, everyday language. Define every technical term the first time it appears.
+- Focus on intuition and the "why" — why each idea matters and how it actually works — not just what it is called.
+- Prefer clarity over brevity. It is fine to spend a couple of sentences making something genuinely understandable.
+- Teach in your OWN words; do not copy long passages verbatim.
+- Use only what the source supports; do not add outside facts.
 
 Produce:
-- headline: one sentence capturing what this source is about
-- summary: a short plain-language paragraph (3-5 sentences) of the overall content
-- key_concepts: 4-8 of the most important ideas, each with a clear one-to-two sentence explanation a learner could understand
-- takeaways: 3-6 short bullet points a learner should remember
+- headline: one friendly sentence on what this lesson teaches
+- summary: a short, plain-language introduction (3-5 sentences) that motivates the topic for a complete beginner
+- key_concepts: 4-8 concepts, each with:
+    - term: the concept's name
+    - explanation: a clear teaching explanation in plain language (2-4 sentences) that defines the terms involved and builds intuition
+    - example: a concrete example or simple analogy that makes the concept click
+- takeaways: 3-6 short points worth remembering
 
-Cover only what the source supports; do not add outside facts. Return ONLY the JSON object matching the schema.`;
+Return ONLY the JSON object matching the schema.`;
 
 export async function generateOverview(source: string): Promise<Overview> {
   const assembled = assembleSource(source, MAX_SOURCE_CHARS);

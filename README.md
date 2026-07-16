@@ -116,8 +116,9 @@ Note this is separate from YouTube, which uses the caption/transcript API above.
 
 ## Model
 
-Defaults to `claude-opus-4-8` (highest quality). To trade quality for lower cost,
-set `ANTHROPIC_MODEL` in `.env.local` to `claude-sonnet-5` or `claude-haiku-4-5`.
+Defaults to **`claude-sonnet-5`** — fast and capable, the right trade-off for an
+interactive tutor. Override `ANTHROPIC_MODEL` in `.env.local` for
+`claude-opus-4-8` (highest quality, slower) or `claude-haiku-4-5` (lowest latency).
 
 ## Deploy to Render
 

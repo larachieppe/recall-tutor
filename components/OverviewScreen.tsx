@@ -57,6 +57,17 @@ export default function OverviewScreen({
                 <p className="mt-1 text-[15px] leading-relaxed">
                   {c.explanation}
                 </p>
+                {c.example && (
+                  <p
+                    className="mt-2 rounded-lg px-3 py-2 text-[14px] leading-relaxed tint"
+                    style={{ color: "var(--ink)" }}
+                  >
+                    <span className="font-semibold" style={{ color: "var(--blue)" }}>
+                      Example:{" "}
+                    </span>
+                    {c.example}
+                  </p>
+                )}
               </div>
             </div>
           ))}
