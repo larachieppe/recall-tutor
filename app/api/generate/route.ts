@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateQuestions } from "@/lib/study";
 import type { GenerateConfig, QuestionType } from "@/lib/types";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -12,6 +13,12 @@ const VALID_TYPES: QuestionType[] = [
 ];
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(`generate:${clientIp(req)}`, 12, 60_000)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { status: 429 },
+    );
+  }
   try {
     const body = await req.json();
     const source = typeof body.source === "string" ? body.source : "";

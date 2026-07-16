@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gradeAnswer } from "@/lib/study";
 import type { Question } from "@/lib/types";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(`grade:${clientIp(req)}`, 30, 60_000)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { status: 429 },
+    );
+  }
   try {
     const body = await req.json();
     const question = body.question as Question | undefined;
