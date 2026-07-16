@@ -11,6 +11,7 @@ interface Props {
   onPracticeWeak: (topics: string[]) => void;
   onAnotherSet: () => void;
   onRestart: () => void;
+  onOpenProgress: () => void;
 }
 
 export default function ResultsScreen({
@@ -20,6 +21,7 @@ export default function ResultsScreen({
   onPracticeWeak,
   onAnotherSet,
   onRestart,
+  onOpenProgress,
 }: Props) {
   const total = records.reduce((s, r) => s + r.feedback.score, 0);
   const max = records.length * 10;
@@ -120,8 +122,14 @@ export default function ResultsScreen({
           {busy ? busyLabel : "Generate another set"}
         </PillButton>
         <button
+          onClick={onOpenProgress}
+          className="mt-1 text-[14px] font-semibold accent-text"
+        >
+          View progress &amp; spaced review →
+        </button>
+        <button
           onClick={onRestart}
-          className="mt-1 text-[14px] font-semibold"
+          className="text-[14px] font-semibold"
           style={{ color: "var(--muted)" }}
         >
           Start over with a new source

@@ -6,6 +6,7 @@ import OverviewScreen from "@/components/OverviewScreen";
 import StudyScreen from "@/components/StudyScreen";
 import ResultsScreen from "@/components/ResultsScreen";
 import LibraryScreen from "@/components/LibraryScreen";
+import ProgressScreen from "@/components/ProgressScreen";
 import type {
   AnswerRecord,
   Feedback,
@@ -22,8 +23,15 @@ import {
   upsertItem,
   type HistoryItem,
 } from "@/lib/library";
+import { conceptKey, dueConcepts, updateConcept } from "@/lib/mastery";
 
-type Phase = "setup" | "library" | "overview" | "study" | "results";
+type Phase =
+  | "setup"
+  | "library"
+  | "progress"
+  | "overview"
+  | "study"
+  | "results";
 
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("setup");
@@ -130,6 +138,16 @@ export default function Home() {
     if (!res.ok) throw new Error(data.error || "Grading failed.");
     const feedback = data.feedback as Feedback;
     setRecords((prev) => [...prev, { question, answer, feedback }]);
+
+    // Update the learner model for this concept (topic) and re-schedule it.
+    const lib = loadLibrary();
+    const mastery = { ...(lib.mastery ?? {}) };
+    const key = conceptKey(question.topic);
+    mastery[key] = updateConcept(mastery[key], question.topic, feedback.score, {
+      sourceItemId: currentItemId ?? undefined,
+    });
+    saveLibrary({ ...lib, mastery });
+
     return feedback;
   }
 
@@ -163,6 +181,40 @@ export default function Home() {
     generate(config, source, false);
   }
 
+  /**
+   * Regenerate a practice round for concepts that are due for review, grounded
+   * in the source they came from. Picks the source covering the most due
+   * concepts and focuses generation on them.
+   */
+  function reviewDue() {
+    const lib = loadLibrary();
+    const due = dueConcepts(lib.mastery ?? {});
+    const bySource = new Map<string, string[]>();
+    for (const c of due) {
+      if (c.sourceItemId && lib.items[c.sourceItemId]) {
+        const arr = bySource.get(c.sourceItemId) ?? [];
+        arr.push(c.concept);
+        bySource.set(c.sourceItemId, arr);
+      }
+    }
+    if (bySource.size === 0) return;
+
+    let bestId = "";
+    let bestConcepts: string[] = [];
+    for (const [id, concepts] of bySource) {
+      if (concepts.length > bestConcepts.length) {
+        bestId = id;
+        bestConcepts = concepts;
+      }
+    }
+    const item = lib.items[bestId];
+    startStudy(
+      item.source,
+      { title: item.title, length: item.source.length },
+      { ...item.config, focus: bestConcepts.join(", ") },
+    );
+  }
+
   function restart() {
     setPhase("setup");
     setQuestions([]);
@@ -176,6 +228,17 @@ export default function Home() {
     return (
       <LibraryScreen
         onOpenItem={openItem}
+        onNewSource={() => setPhase("setup")}
+      />
+    );
+  }
+
+  if (phase === "progress") {
+    return (
+      <ProgressScreen
+        busy={busy}
+        busyLabel={busyLabel}
+        onReviewDue={reviewDue}
         onNewSource={() => setPhase("setup")}
       />
     );
@@ -214,6 +277,7 @@ export default function Home() {
         onPracticeWeak={practiceWeak}
         onAnotherSet={anotherSet}
         onRestart={restart}
+        onOpenProgress={() => setPhase("progress")}
       />
     );
   }
@@ -222,6 +286,7 @@ export default function Home() {
     <SetupScreen
       onReady={handleReady}
       onOpenHistory={() => setPhase("library")}
+      onOpenProgress={() => setPhase("progress")}
       busy={busy}
       busyLabel={busyLabel}
       error={error}

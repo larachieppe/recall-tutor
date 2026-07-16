@@ -22,6 +22,7 @@ const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 interface Props {
   onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
   onOpenHistory: () => void;
+  onOpenProgress: () => void;
   busy: boolean;
   busyLabel: string;
   error: string | null;
@@ -30,6 +31,7 @@ interface Props {
 export default function SetupScreen({
   onReady,
   onOpenHistory,
+  onOpenProgress,
   busy,
   busyLabel,
   error,
@@ -108,6 +110,13 @@ export default function SetupScreen({
           </div>
           <div className="flex items-center gap-3">
             {AUTH_ENABLED && <AuthButton />}
+            <button
+              onClick={onOpenProgress}
+              className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
+              style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+            >
+              Progress
+            </button>
             <button
               onClick={onOpenHistory}
               className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"

@@ -1,4 +1,5 @@
 import type { GenerateConfig } from "./types";
+import type { MasteryMap } from "./mastery";
 
 /** A past input (source the user studied), stored so it can be re-run. */
 export interface HistoryItem {
@@ -19,6 +20,8 @@ export interface Group {
 export interface Library {
   items: Record<string, HistoryItem>;
   groups: Group[]; // ordered
+  /** Per-concept learner model + spaced-repetition schedule. */
+  mastery?: MasteryMap;
 }
 
 const KEY = "recall.library.v1";
