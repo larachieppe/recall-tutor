@@ -19,6 +19,7 @@ const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
 interface Props {
   onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
+  onOpenHistory: () => void;
   busy: boolean;
   busyLabel: string;
   error: string | null;
@@ -26,6 +27,7 @@ interface Props {
 
 export default function SetupScreen({
   onReady,
+  onOpenHistory,
   busy,
   busyLabel,
   error,
@@ -90,9 +92,20 @@ export default function SetupScreen({
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 md:py-16">
       <header className="mb-10">
-        <div className="mb-8 flex items-center gap-2.5">
-          <BrandMark />
-          <span className="text-[19px] font-bold tracking-[0.22em]">RECALL</span>
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <BrandMark />
+            <span className="text-[19px] font-bold tracking-[0.22em]">
+              RECALL
+            </span>
+          </div>
+          <button
+            onClick={onOpenHistory}
+            className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
+            style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+          >
+            History
+          </button>
         </div>
         <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight md:text-6xl">
           Turn any source into{" "}

@@ -5,6 +5,7 @@ import SetupScreen from "@/components/SetupScreen";
 import OverviewScreen from "@/components/OverviewScreen";
 import StudyScreen from "@/components/StudyScreen";
 import ResultsScreen from "@/components/ResultsScreen";
+import LibraryScreen from "@/components/LibraryScreen";
 import type {
   AnswerRecord,
   Feedback,
@@ -14,8 +15,15 @@ import type {
   SourceMeta,
 } from "@/lib/types";
 import { saveSession } from "@/lib/session";
+import {
+  loadLibrary,
+  saveLibrary,
+  setItemScore,
+  upsertItem,
+  type HistoryItem,
+} from "@/lib/library";
 
-type Phase = "setup" | "overview" | "study" | "results";
+type Phase = "setup" | "library" | "overview" | "study" | "results";
 
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("setup");
@@ -31,6 +39,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Working…");
   const [error, setError] = useState<string | null>(null);
+  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
 
   /**
    * Generate questions (and, on the first round, didactic study notes in
@@ -83,11 +92,31 @@ export default function Home() {
     }
   }
 
-  function handleReady(src: string, m: SourceMeta, cfg: GenerateConfig) {
+  /** Save the input to history (dedupes by source) and start a study round. */
+  function startStudy(src: string, m: SourceMeta, cfg: GenerateConfig) {
+    const { lib, id } = upsertItem(loadLibrary(), {
+      title: m.title,
+      source: src,
+      config: cfg,
+    });
+    saveLibrary(lib);
+    setCurrentItemId(id);
     setSource(src);
     setMeta(m);
     setConfig(cfg);
     generate(cfg, src, true);
+  }
+
+  function handleReady(src: string, m: SourceMeta, cfg: GenerateConfig) {
+    startStudy(src, m, cfg);
+  }
+
+  function openItem(item: HistoryItem) {
+    startStudy(
+      item.source,
+      { title: item.title, length: item.source.length },
+      item.config,
+    );
   }
 
   async function handleGrade(answer: string): Promise<Feedback> {
@@ -106,14 +135,20 @@ export default function Home() {
 
   function finish(finalRecords: AnswerRecord[]) {
     if (meta && finalRecords.length) {
+      const totalScore = finalRecords.reduce((s, r) => s + r.feedback.score, 0);
+      const maxScore = finalRecords.length * 10;
       saveSession({
         id: crypto.randomUUID(),
         title: meta.title,
         createdAt: Date.now(),
-        totalScore: finalRecords.reduce((s, r) => s + r.feedback.score, 0),
-        maxScore: finalRecords.length * 10,
+        totalScore,
+        maxScore,
         answers: finalRecords,
       });
+      if (currentItemId) {
+        const pct = Math.round((totalScore / maxScore) * 100);
+        saveLibrary(setItemScore(loadLibrary(), currentItemId, pct));
+      }
     }
     setPhase("results");
   }
@@ -135,6 +170,15 @@ export default function Home() {
     setOverview(null);
     setIndex(0);
     setError(null);
+  }
+
+  if (phase === "library") {
+    return (
+      <LibraryScreen
+        onOpenItem={openItem}
+        onNewSource={() => setPhase("setup")}
+      />
+    );
   }
 
   if (phase === "overview" && overview) {
@@ -177,6 +221,7 @@ export default function Home() {
   return (
     <SetupScreen
       onReady={handleReady}
+      onOpenHistory={() => setPhase("library")}
       busy={busy}
       busyLabel={busyLabel}
       error={error}
