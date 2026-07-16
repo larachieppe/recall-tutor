@@ -4,6 +4,7 @@ import {
   generateInput,
   gradeInput,
   urlInput,
+  tutorInput,
 } from "../lib/schemas";
 
 const longSource = "word ".repeat(50); // > 120 chars
@@ -73,5 +74,27 @@ describe("gradeInput", () => {
   });
   it("rejects a null body", () => {
     expect(parseBody(gradeInput, null).ok).toBe(false);
+  });
+});
+
+describe("tutorInput", () => {
+  const base = {
+    question: "Why?",
+    messages: [{ role: "user", content: "explain" }],
+  };
+  it("accepts a valid conversation", () => {
+    expect(parseBody(tutorInput, base).ok).toBe(true);
+  });
+  it("requires at least one message", () => {
+    expect(parseBody(tutorInput, { question: "Why?", messages: [] }).ok).toBe(
+      false,
+    );
+  });
+  it("rejects an invalid message role", () => {
+    const r = parseBody(tutorInput, {
+      question: "Why?",
+      messages: [{ role: "system", content: "x" }],
+    });
+    expect(r.ok).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import type {
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { PillButton } from "@/components/ui";
 import { matchEvidence, evidenceIndices } from "@/lib/highlight";
+import type { TutorTurn } from "@/lib/tutor";
 
 interface Props {
   questions: Question[];
@@ -118,7 +119,9 @@ export default function StudyScreen({
         )}
       </div>
 
-      {feedback && <FeedbackCard feedback={feedback} question={question} />}
+      {feedback && (
+        <FeedbackCard feedback={feedback} question={question} answer={answer} />
+      )}
 
       {feedback && (
         <div className="mt-6">
@@ -141,9 +144,11 @@ function statusColors(status: "met" | "partial" | "missing") {
 function FeedbackCard({
   feedback,
   question,
+  answer,
 }: {
   feedback: Feedback;
   question: Question;
+  answer: string;
 }) {
   const [showSource, setShowSource] = useState(false);
   return (
@@ -187,6 +192,142 @@ function FeedbackCard({
           excerpt={question.source_excerpt}
           criteria={feedback.criteria}
         />
+      )}
+
+      <TutorChat question={question} answer={answer} />
+    </div>
+  );
+}
+
+const SUGGESTIONS = [
+  "Why is that?",
+  "Explain it differently",
+  "Give me an analogy",
+];
+
+function TutorChat({
+  question,
+  answer,
+}: {
+  question: Question;
+  answer: string;
+}) {
+  const [messages, setMessages] = useState<TutorTurn[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send(text: string) {
+    const content = text.trim();
+    if (!content || loading) return;
+    const next: TutorTurn[] = [...messages, { role: "user", content }];
+    setMessages(next);
+    setInput("");
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/tutor", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          question: question.question,
+          sourceExcerpt: question.source_excerpt,
+          referenceAnswer: question.reference_answer,
+          studentAnswer: answer,
+          messages: next,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Tutor failed.");
+      setMessages([...next, { role: "assistant", content: data.reply }]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Tutor failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--line)" }}>
+      <h3
+        className="mb-3 text-[12px] font-bold uppercase tracking-[0.1em]"
+        style={{ color: "var(--muted)" }}
+      >
+        Ask the tutor
+      </h3>
+
+      {messages.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {messages.map((m, i) => (
+            <div
+              key={i}
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed ${
+                m.role === "user" ? "ml-auto" : ""
+              }`}
+              style={{
+                background: m.role === "user" ? "var(--blue)" : "var(--tint)",
+                color: m.role === "user" ? "#fff" : "var(--ink)",
+              }}
+            >
+              {m.content}
+            </div>
+          ))}
+          {loading && (
+            <div
+              className="max-w-[85%] rounded-2xl px-4 py-2.5 text-[14px] tint"
+              style={{ color: "var(--muted)" }}
+            >
+              Thinking…
+            </div>
+          )}
+        </div>
+      )}
+
+      {messages.length === 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => send(s)}
+              disabled={loading}
+              className="rounded-full border px-3 py-1.5 text-[13px] font-medium transition hover:bg-[var(--tint)] disabled:opacity-50"
+              style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send(input);
+        }}
+        className="flex gap-2"
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={loading}
+          placeholder="Ask a follow-up about this concept…"
+          className="flex-1 rounded-full border px-4 py-2.5 text-[14px] outline-none transition focus:border-[var(--blue)]"
+          style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+        />
+        <button
+          type="submit"
+          disabled={loading || !input.trim()}
+          className="shrink-0 rounded-full px-5 py-2.5 text-[14px] font-semibold text-white disabled:opacity-50"
+          style={{ background: "var(--blue)" }}
+        >
+          Ask
+        </button>
+      </form>
+
+      {error && (
+        <p className="mt-2 text-[13px]" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
       )}
     </div>
   );

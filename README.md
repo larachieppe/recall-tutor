@@ -75,6 +75,9 @@ GitHub sign-in and Postgres sync are optional (see [Cloud sync](#cloud-sync-opti
 - `app/api/generate` — one Claude call returns questions, each with a topic,
   a reference answer, a **rubric** (criteria summing to 10 points), and the
   supporting source passage. Uses structured outputs so the JSON is always valid.
+- `app/api/tutor` — after feedback, a grounded follow-up chat ("why?", "explain
+  differently," "give an analogy") answered from the source passage and question,
+  so it's a tutor you can talk to, not just a grader.
 - **Quality gate** — candidates then pass a deterministic verifier
   (`lib/verify.ts`) that drops near-duplicates, questions whose source excerpt
   isn't grounded in the document, and questions that leak the reference answer —

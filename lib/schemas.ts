@@ -39,6 +39,22 @@ export const gradeInput = z.object({
   answer: z.string().catch(""),
 });
 
+export const tutorInput = z.object({
+  question: z.string().min(1),
+  sourceExcerpt: z.string().catch(""),
+  referenceAnswer: z.string().catch(""),
+  studentAnswer: z.string().catch(""),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().min(1).max(4000),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+
 export const urlInput = z.object({
   url: z.string().regex(/^https?:\/\//i, "Please provide a valid http(s) URL."),
 });
