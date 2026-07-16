@@ -56,6 +56,20 @@ this uses a managed transcript API: set `SUPADATA_API_KEY` (free tier at
 message. The provider call is isolated in `lib/youtube.ts` (`fetchTranscriptText`)
 so you can swap providers.
 
+## Audio & video (transcription)
+
+Upload an audio/video file, or paste a **direct media URL** (`.mp4`, `.mp3`,
+`.m4a`, `.mov`, a podcast link, …), and the app transcribes the speech and
+studies that. Uses **Deepgram** (set `DEEPGRAM_API_KEY`, free credit at
+<https://deepgram.com>) — one synchronous call that accepts a URL (Deepgram
+fetches it) or the uploaded bytes, so the server never stores large media.
+Provider is isolated in `lib/transcribe.ts`. Without the key, media sources show
+a "not set up yet" message.
+
+Limits: uploads are capped at 60 MB (paste a URL for larger); very long media can
+exceed the request timeout — an async job flow is the planned upgrade for that.
+Note this is separate from YouTube, which uses the caption/transcript API above.
+
 ## Model
 
 Defaults to `claude-opus-4-8` (highest quality). To trade quality for lower cost,

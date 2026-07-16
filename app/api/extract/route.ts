@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractFromFile, extractFromUrl } from "@/lib/extract";
+import { isMediaFilename } from "@/lib/transcribe";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MIN_CHARS = 120;
-const MAX_FILE_BYTES = 15_000_000; // 15 MB
+const MAX_DOC_BYTES = 15_000_000; // 15 MB for documents
+const MAX_MEDIA_BYTES = 60_000_000; // 60 MB for audio/video (larger; paste a URL for more)
 
 export async function POST(req: NextRequest) {
   if (!rateLimit(`extract:${clientIp(req)}`, 20, 60_000)) {
@@ -26,14 +28,20 @@ export async function POST(req: NextRequest) {
       if (!(file instanceof File)) {
         return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
       }
-      if (file.size > MAX_FILE_BYTES) {
+      const isMedia = isMediaFilename(file.name);
+      const cap = isMedia ? MAX_MEDIA_BYTES : MAX_DOC_BYTES;
+      if (file.size > cap) {
         return NextResponse.json(
-          { error: "File too large (max 15 MB)." },
+          {
+            error: isMedia
+              ? "Media file too large (max 60 MB). Paste a direct link to the file instead."
+              : "File too large (max 15 MB).",
+          },
           { status: 413 },
         );
       }
       const bytes = await file.arrayBuffer();
-      result = await extractFromFile(file.name, bytes);
+      result = await extractFromFile(file.name, bytes, file.type);
     } else {
       const { url } = await req.json();
       if (typeof url !== "string" || !/^https?:\/\//i.test(url)) {

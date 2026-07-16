@@ -5,6 +5,13 @@ import { extractText, getDocumentProxy } from "unpdf";
 import dns from "node:dns/promises";
 import net from "node:net";
 import { fetchYouTubeTranscript, parseYouTubeId } from "./youtube";
+import {
+  isMediaFilename,
+  isMediaUrl,
+  titleFromSource,
+  transcribeBytes,
+  transcribeUrl,
+} from "./transcribe";
 
 export interface Extracted {
   title: string;
@@ -29,9 +36,16 @@ function clean(text: string): string {
 export async function extractFromFile(
   filename: string,
   bytes: ArrayBuffer,
+  contentType = "",
 ): Promise<Extracted> {
   const lower = filename.toLowerCase();
   const title = filename.replace(/\.[^.]+$/, "");
+
+  // Audio/video uploads: transcribe the speech.
+  if (isMediaFilename(filename)) {
+    const text = await transcribeBytes(bytes, contentType);
+    return { title: titleFromSource(filename), text: clean(text) };
+  }
 
   if (lower.endsWith(".pdf")) {
     const pdf = await getDocumentProxy(new Uint8Array(bytes));
@@ -154,6 +168,12 @@ export async function extractFromUrl(url: string): Promise<Extracted> {
   if (ytId) {
     const yt = await fetchYouTubeTranscript(ytId);
     return { title: yt.title, text: clean(yt.text) };
+  }
+
+  // Direct audio/video URLs: transcribe the media (Deepgram fetches it).
+  if (isMediaUrl(url)) {
+    const text = await transcribeUrl(url);
+    return { title: titleFromSource(url), text: clean(text) };
   }
 
   const html = await safeFetch(url);

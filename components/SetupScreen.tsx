@@ -90,6 +90,11 @@ export default function SetupScreen({
   }
 
   const canExtract = tab === "link" ? url.trim().length > 0 : !!file;
+  const MEDIA_RE =
+    /\.(mp3|m4a|wav|aac|ogg|oga|opus|flac|wma|mp4|mov|webm|mkv|avi|m4v|mpeg|mpg|3gp)(\?|#|$)/i;
+  const inputIsMedia =
+    tab === "link" ? MEDIA_RE.test(url) : !!file && MEDIA_RE.test(file.name);
+  const readingLabel = inputIsMedia ? "Transcribing…" : "Reading…";
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 md:py-16">
@@ -153,7 +158,7 @@ export default function SetupScreen({
               <input
                 ref={fileInput}
                 type="file"
-                accept=".pdf,.docx,.txt,.md"
+                accept=".pdf,.docx,.txt,.md,.mp3,.m4a,.wav,.aac,.ogg,.opus,.flac,.mp4,.mov,.webm,.mkv,.m4v"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 className="hidden"
               />
@@ -162,7 +167,9 @@ export default function SetupScreen({
                 className="w-full rounded-xl border border-dashed px-3 py-7 text-[15px] transition hover:border-[var(--blue)]"
                 style={{ borderColor: "var(--line)", color: "var(--muted)" }}
               >
-                {file ? file.name : "Choose a PDF, DOCX, TXT, or MD file"}
+                {file
+                  ? file.name
+                  : "Choose a file — PDF, DOCX, TXT, or audio/video"}
               </button>
             </div>
           )}
@@ -173,7 +180,7 @@ export default function SetupScreen({
               disabled={!canExtract || extracting}
               variant="light"
             >
-              {extracting ? "Reading…" : "Read source"}
+              {extracting ? readingLabel : "Read source"}
             </PillButton>
           </div>
 
