@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateOverview } from "@/lib/study";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { summaryInput, parseBody } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -12,17 +13,12 @@ export async function POST(req: NextRequest) {
       { status: 429 },
     );
   }
+  const parsed = parseBody(summaryInput, await req.json().catch(() => null));
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
   try {
-    const body = await req.json();
-    const source = typeof body.source === "string" ? body.source : "";
-    if (source.trim().length < 120) {
-      return NextResponse.json(
-        { error: "Source text is too short to summarize." },
-        { status: 400 },
-      );
-    }
-
-    const overview = await generateOverview(source);
+    const overview = await generateOverview(parsed.data.source);
     return NextResponse.json({ overview });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Overview failed.";

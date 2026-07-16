@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractFromFile, extractFromUrl } from "@/lib/extract";
 import { isMediaFilename } from "@/lib/transcribe";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { urlInput, parseBody } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -43,14 +44,11 @@ export async function POST(req: NextRequest) {
       const bytes = await file.arrayBuffer();
       result = await extractFromFile(file.name, bytes, file.type);
     } else {
-      const { url } = await req.json();
-      if (typeof url !== "string" || !/^https?:\/\//i.test(url)) {
-        return NextResponse.json(
-          { error: "Please provide a valid http(s) URL." },
-          { status: 400 },
-        );
+      const parsed = parseBody(urlInput, await req.json().catch(() => null));
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
       }
-      result = await extractFromUrl(url);
+      result = await extractFromUrl(parsed.data.url);
     }
 
     if (!result.text || result.text.length < MIN_CHARS) {

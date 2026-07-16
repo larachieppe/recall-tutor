@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { libraries } from "@/lib/db/schema";
+import { libraryPutInput, parseBody } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 
@@ -26,11 +27,11 @@ export async function PUT(req: NextRequest) {
   if (!userId || !db) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const body = await req.json();
-  const data = body.library;
-  if (!data || typeof data !== "object") {
-    return NextResponse.json({ error: "Invalid library" }, { status: 400 });
+  const parsed = parseBody(libraryPutInput, await req.json().catch(() => null));
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+  const data = parsed.data.library;
   const now = new Date();
   await db
     .insert(libraries)
