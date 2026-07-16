@@ -56,3 +56,33 @@ export function underDailyCap(): boolean {
   return true;
 }
 
+// --- Anonymous free allowance -------------------------------------------
+
+const anonCounts = new Map<string, { day: string; count: number }>();
+
+/**
+ * Per-IP daily free allowance for anonymous users. Returns true (blocked) once
+ * the IP has used `limit` generations today; increments on each allowed call.
+ */
+export function anonQuotaExceeded(ip: string, limit: number): boolean {
+  const day = new Date().toISOString().slice(0, 10);
+
+  if (anonCounts.size > 5000) {
+    for (const [k, v] of anonCounts) if (v.day !== day) anonCounts.delete(k);
+  }
+
+  const rec = anonCounts.get(ip);
+  if (!rec || rec.day !== day) {
+    anonCounts.set(ip, { day, count: 1 });
+    return false;
+  }
+  if (rec.count >= limit) return true;
+  rec.count += 1;
+  return false;
+}
+
+/** Whether GitHub sign-in is configured (gate only applies when it is). */
+export function authConfigured(): boolean {
+  return !!(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
+}
+

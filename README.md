@@ -169,6 +169,13 @@ this — it only turns on when all the env vars below are set.
 > `NEXT_PUBLIC_AUTH_ENABLED` without the backend secrets will show sign-in but
 > log a server-configuration error until the rest are set.
 
+**Abuse protection.** Once GitHub sign-in is configured, **generating questions
+requires sign-in** — but anonymous visitors get a small free daily allowance
+first (`FREE_ANON_GENERATIONS`, default 3) so casual users can try it. Combined
+with a per-IP rate limit and an app-wide daily cap (`DAILY_AI_LIMIT`), this keeps
+strangers from running up your Anthropic bill. Also set a hard monthly spend
+limit on the Anthropic key itself — that's the real financial backstop.
+
 ## Testing & CI
 
 ```bash

@@ -210,6 +210,7 @@ export default function Home() {
         busyLabel={state.busyLabel}
         onReviewDue={reviewDue}
         onNewSource={() => dispatch({ type: "NAV", phase: "setup" })}
+        error={state.error}
       />
     );
   }
@@ -248,6 +249,7 @@ export default function Home() {
         onAnotherSet={anotherSet}
         onRestart={() => dispatch({ type: "RESTART" })}
         onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
+        error={state.error}
       />
     );
   }

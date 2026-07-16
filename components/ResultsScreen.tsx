@@ -3,6 +3,8 @@
 import type { AnswerRecord } from "@/lib/types";
 import { topicMastery, weakTopics } from "@/lib/session";
 import { PillButton } from "@/components/ui";
+import { AUTH_ENABLED } from "@/lib/auth-flag";
+import SignInPrompt from "@/components/SignInPrompt";
 
 interface Props {
   records: AnswerRecord[];
@@ -12,6 +14,7 @@ interface Props {
   onAnotherSet: () => void;
   onRestart: () => void;
   onOpenProgress: () => void;
+  error: string | null;
 }
 
 export default function ResultsScreen({
@@ -22,6 +25,7 @@ export default function ResultsScreen({
   onAnotherSet,
   onRestart,
   onOpenProgress,
+  error,
 }: Props) {
   const total = records.reduce((s, r) => s + r.feedback.score, 0);
   const max = records.length * 10;
@@ -104,6 +108,14 @@ export default function ResultsScreen({
       </section>
 
       <div className="mt-7 flex flex-col items-center gap-3">
+        {error && (
+          <div className="mb-1 flex flex-col items-center">
+            <p className="text-center text-[14px]" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+            {AUTH_ENABLED && /sign in/i.test(error) && <SignInPrompt />}
+          </div>
+        )}
         {weak.length > 0 && (
           <PillButton
             onClick={() => onPracticeWeak(weak)}

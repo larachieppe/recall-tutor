@@ -11,6 +11,7 @@ import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { BrandMark, PillButton } from "@/components/ui";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import AuthButton from "@/components/AuthButton";
+import SignInPrompt from "@/components/SignInPrompt";
 
 const ALL_TYPES: QuestionType[] = [
   "short_answer",
@@ -269,12 +270,12 @@ export default function SetupScreen({
       </div>
 
       {error && (
-        <p
-          className="mt-6 text-center text-[14px]"
-          style={{ color: "var(--danger)" }}
-        >
-          {error}
-        </p>
+        <div className="mt-6 flex flex-col items-center">
+          <p className="text-center text-[14px]" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+          {AUTH_ENABLED && /sign in/i.test(error) && <SignInPrompt />}
+        </div>
       )}
 
       <div className="mt-8 flex flex-col items-center">

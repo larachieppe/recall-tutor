@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateQuestions } from "@/lib/study";
-import { clientIp, rateLimit, underDailyCap } from "@/lib/rate-limit";
+import {
+  anonQuotaExceeded,
+  authConfigured,
+  clientIp,
+  rateLimit,
+  underDailyCap,
+} from "@/lib/rate-limit";
 import { generateInput, parseBody } from "@/lib/schemas";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -13,6 +20,25 @@ export async function POST(req: NextRequest) {
       { status: 429 },
     );
   }
+
+  // Require sign-in to generate, once auth is configured — but give anonymous
+  // users a small free daily allowance first.
+  if (authConfigured()) {
+    const session = await auth();
+    if (!session?.user) {
+      const free = Number(process.env.FREE_ANON_GENERATIONS || 3);
+      if (anonQuotaExceeded(clientIp(req), free)) {
+        return NextResponse.json(
+          {
+            error: `You've used your ${free} free question sets for today. Sign in to keep generating.`,
+            code: "SIGN_IN_REQUIRED",
+          },
+          { status: 401 },
+        );
+      }
+    }
+  }
+
   if (!underDailyCap()) {
     return NextResponse.json(
       { error: "The app has reached today's usage limit. Please try again tomorrow." },

@@ -12,12 +12,15 @@ import {
 } from "@/lib/mastery";
 import { BrandMark, PillButton } from "@/components/ui";
 import { captureCount, capturesToJsonl, clearCaptures } from "@/lib/capture";
+import { AUTH_ENABLED } from "@/lib/auth-flag";
+import SignInPrompt from "@/components/SignInPrompt";
 
 interface Props {
   busy: boolean;
   busyLabel: string;
   onReviewDue: () => void;
   onNewSource: () => void;
+  error: string | null;
 }
 
 export default function ProgressScreen({
@@ -25,6 +28,7 @@ export default function ProgressScreen({
   busyLabel,
   onReviewDue,
   onNewSource,
+  error,
 }: Props) {
   const [mastery, setMastery] = useState<MasteryMap>({});
   const [captured, setCaptured] = useState(0);
@@ -103,6 +107,15 @@ export default function ProgressScreen({
               ? busyLabel
               : `Review due concepts (${reviewable.length})`}
           </PillButton>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 flex flex-col items-center">
+          <p className="text-center text-[14px]" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+          {AUTH_ENABLED && /sign in/i.test(error) && <SignInPrompt />}
         </div>
       )}
 
