@@ -24,6 +24,7 @@ import {
   type HistoryItem,
 } from "@/lib/library";
 import { conceptKey, dueConcepts, updateConcept } from "@/lib/mastery";
+import { captureAnswer } from "@/lib/capture";
 
 type Phase =
   | "setup"
@@ -147,6 +148,9 @@ export default function Home() {
       sourceItemId: currentItemId ?? undefined,
     });
     saveLibrary({ ...lib, mastery });
+
+    // Passively build an evaluation dataset from real usage (local only).
+    captureAnswer(question, answer, feedback);
 
     return feedback;
   }

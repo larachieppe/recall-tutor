@@ -11,6 +11,7 @@ import {
   type MasteryMap,
 } from "@/lib/mastery";
 import { BrandMark, PillButton } from "@/components/ui";
+import { captureCount, capturesToJsonl, clearCaptures } from "@/lib/capture";
 
 interface Props {
   busy: boolean;
@@ -26,13 +27,34 @@ export default function ProgressScreen({
   onNewSource,
 }: Props) {
   const [mastery, setMastery] = useState<MasteryMap>({});
+  const [captured, setCaptured] = useState(0);
 
   useEffect(() => {
-    const load = () => setMastery(loadLibrary().mastery ?? {});
+    const load = () => {
+      setMastery(loadLibrary().mastery ?? {});
+      setCaptured(captureCount());
+    };
     load();
     window.addEventListener("recall:lib-remote", load);
     return () => window.removeEventListener("recall:lib-remote", load);
   }, []);
+
+  function downloadDataset() {
+    const blob = new Blob([capturesToJsonl()], {
+      type: "application/x-jsonlines",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dataset.jsonl";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetCaptures() {
+    clearCaptures();
+    setCaptured(0);
+  }
 
   const concepts = allConcepts(mastery);
   const due = dueConcepts(mastery);
@@ -99,6 +121,39 @@ export default function ProgressScreen({
           </div>
         </section>
       )}
+
+      {/* Evaluation capture (self-building dataset from real usage) */}
+      <section className="panel mt-6 rounded-2xl p-6">
+        <h2
+          className="mb-1 text-[12px] font-bold uppercase tracking-[0.14em]"
+          style={{ color: "var(--muted)" }}
+        >
+          Evaluation capture
+        </h2>
+        <p className="text-[14px]" style={{ color: "var(--muted)" }}>
+          {captured === 0
+            ? "Answers you grade are logged here (locally) to build a grading-evaluation dataset."
+            : `${captured} answered question${captured === 1 ? "" : "s"} captured. Download, review/correct the human scores, then run the eval.`}
+        </p>
+        {captured > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={downloadDataset}
+              className="rounded-full px-5 py-2 text-[14px] font-semibold text-white"
+              style={{ background: "var(--blue)" }}
+            >
+              Download dataset.jsonl
+            </button>
+            <button
+              onClick={resetCaptures}
+              className="text-[13px] font-semibold"
+              style={{ color: "var(--muted)" }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
