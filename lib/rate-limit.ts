@@ -31,3 +31,28 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   b.count += 1;
   return true;
 }
+
+// --- Global daily cap ----------------------------------------------------
+
+let dayKey = "";
+let dayCount = 0;
+
+/**
+ * App-wide ceiling on paid AI calls per UTC day, across ALL users/IPs. This is
+ * the backstop that per-IP limits can't provide (IP rotation bypasses those).
+ * In-memory: it holds during a sustained attack (process stays warm) and resets
+ * on deploy/idle. Set DAILY_AI_LIMIT to tune; pair it with a hard spend limit on
+ * the Anthropic key for a true financial ceiling.
+ */
+export function underDailyCap(): boolean {
+  const limit = Number(process.env.DAILY_AI_LIMIT || 300);
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== dayKey) {
+    dayKey = today;
+    dayCount = 0;
+  }
+  if (dayCount >= limit) return false;
+  dayCount += 1;
+  return true;
+}
+

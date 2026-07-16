@@ -1,10 +1,10 @@
-import { Readability } from "@mozilla/readability";
-import { JSDOM } from "jsdom";
-import mammoth from "mammoth";
-import { extractText, getDocumentProxy } from "unpdf";
 import dns from "node:dns/promises";
 import net from "node:net";
 import { fetchYouTubeTranscript, parseYouTubeId } from "./youtube";
+
+// NOTE: jsdom / unpdf / mammoth / readability are loaded lazily inside the
+// functions below (dynamic import). Importing them at module top-level pulls an
+// ESM-only jsdom transitive dep that breaks Next's build-time page-data step.
 import {
   isMediaFilename,
   isMediaUrl,
@@ -48,12 +48,14 @@ export async function extractFromFile(
   }
 
   if (lower.endsWith(".pdf")) {
+    const { extractText, getDocumentProxy } = await import("unpdf");
     const pdf = await getDocumentProxy(new Uint8Array(bytes));
     const { text } = await extractText(pdf, { mergePages: true });
     return { title, text: clean(text) };
   }
 
   if (lower.endsWith(".docx")) {
+    const mammoth = (await import("mammoth")).default;
     const { value } = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
     return { title, text: clean(value) };
   }
@@ -177,6 +179,8 @@ export async function extractFromUrl(url: string): Promise<Extracted> {
   }
 
   const html = await safeFetch(url);
+  const { JSDOM } = await import("jsdom");
+  const { Readability } = await import("@mozilla/readability");
   const dom = new JSDOM(html); // no `url` option → no resource loading
   const doc = dom.window.document;
   const pageTitle = doc.title || url;
