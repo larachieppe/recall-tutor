@@ -1,20 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 import SetupScreen from "@/components/SetupScreen";
 import OverviewScreen from "@/components/OverviewScreen";
 import StudyScreen from "@/components/StudyScreen";
 import ResultsScreen from "@/components/ResultsScreen";
 import LibraryScreen from "@/components/LibraryScreen";
 import ProgressScreen from "@/components/ProgressScreen";
-import type {
-  AnswerRecord,
-  Feedback,
-  GenerateConfig,
-  Overview,
-  Question,
-  SourceMeta,
-} from "@/lib/types";
+import type { Feedback, GenerateConfig, SourceMeta } from "@/lib/types";
+import { reducer, initialState } from "@/lib/study-machine";
 import { saveSession } from "@/lib/session";
 import {
   loadLibrary,
@@ -26,42 +20,15 @@ import {
 import { conceptKey, dueConcepts, updateConcept } from "@/lib/mastery";
 import { captureAnswer } from "@/lib/capture";
 
-type Phase =
-  | "setup"
-  | "library"
-  | "progress"
-  | "overview"
-  | "study"
-  | "results";
-
 export default function Home() {
-  const [phase, setPhase] = useState<Phase>("setup");
-  const [source, setSource] = useState("");
-  const [meta, setMeta] = useState<SourceMeta | null>(null);
-  const [config, setConfig] = useState<GenerateConfig | null>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [index, setIndex] = useState(0);
-  const [records, setRecords] = useState<AnswerRecord[]>([]);
-  const [overview, setOverview] = useState<Overview | null>(null);
-
-  const [busy, setBusy] = useState(false);
-  const [busyLabel, setBusyLabel] = useState("Working…");
-  const [error, setError] = useState<string | null>(null);
-  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
-
-  /**
-   * Generate questions (and, on the first round, didactic study notes in
-   * parallel). If notes come back, show the overview screen before study.
-   */
-  async function generate(
+  /** Async generation: questions (+ optional study notes) → drive the machine. */
+  async function runGeneration(
     cfg: GenerateConfig,
     src: string,
     withOverview: boolean,
   ) {
-    setBusy(true);
-    setBusyLabel(withOverview ? "Reading & generating…" : "Generating questions…");
-    setError(null);
     try {
       const genReq = fetch("/api/generate", {
         method: "POST",
@@ -77,43 +44,42 @@ export default function Home() {
         : null;
 
       const [genRes, sumRes] = await Promise.all([genReq, sumReq]);
-
       const genData = await genRes.json();
       if (!genRes.ok) throw new Error(genData.error || "Generation failed.");
       if (!genData.questions?.length)
         throw new Error("No questions were generated.");
 
-      let ov: Overview | null = null;
+      let overview = null;
       if (sumRes) {
         const sumData = await sumRes.json();
-        if (sumRes.ok && sumData.overview) ov = sumData.overview;
+        if (sumRes.ok && sumData.overview) overview = sumData.overview;
       }
-
-      setQuestions(genData.questions);
-      setRecords([]);
-      setIndex(0);
-      setOverview(ov);
-      setPhase(ov ? "overview" : "study");
+      dispatch({ type: "GENERATE_DONE", questions: genData.questions, overview });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed.");
-    } finally {
-      setBusy(false);
+      dispatch({
+        type: "GENERATE_FAIL",
+        error: e instanceof Error ? e.message : "Generation failed.",
+      });
     }
   }
 
-  /** Save the input to history (dedupes by source) and start a study round. */
-  function startStudy(src: string, m: SourceMeta, cfg: GenerateConfig) {
+  /** Save the input to history (dedupes) and start a study round. */
+  function startStudy(src: string, meta: SourceMeta, cfg: GenerateConfig) {
     const { lib, id } = upsertItem(loadLibrary(), {
-      title: m.title,
+      title: meta.title,
       source: src,
       config: cfg,
     });
     saveLibrary(lib);
-    setCurrentItemId(id);
-    setSource(src);
-    setMeta(m);
-    setConfig(cfg);
-    generate(cfg, src, true);
+    dispatch({
+      type: "GENERATE_START",
+      source: src,
+      meta,
+      config: cfg,
+      itemId: id,
+      label: "Reading & generating…",
+    });
+    runGeneration(cfg, src, true);
   }
 
   function handleReady(src: string, m: SourceMeta, cfg: GenerateConfig) {
@@ -128,68 +94,31 @@ export default function Home() {
     );
   }
 
-  async function handleGrade(answer: string): Promise<Feedback> {
-    const question = questions[index];
-    const res = await fetch("/api/grade", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question, answer }),
+  /** Regenerate without study notes, reusing the current source (weak areas / another set). */
+  function regenerate(cfg: GenerateConfig) {
+    if (!state.meta) return;
+    dispatch({
+      type: "GENERATE_START",
+      source: state.source,
+      meta: state.meta,
+      config: cfg,
+      itemId: state.currentItemId,
+      label: "Generating questions…",
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Grading failed.");
-    const feedback = data.feedback as Feedback;
-    setRecords((prev) => [...prev, { question, answer, feedback }]);
-
-    // Update the learner model for this concept (topic) and re-schedule it.
-    const lib = loadLibrary();
-    const mastery = { ...(lib.mastery ?? {}) };
-    const key = conceptKey(question.topic);
-    mastery[key] = updateConcept(mastery[key], question.topic, feedback.score, {
-      sourceItemId: currentItemId ?? undefined,
-    });
-    saveLibrary({ ...lib, mastery });
-
-    // Passively build an evaluation dataset from real usage (local only).
-    captureAnswer(question, answer, feedback);
-
-    return feedback;
-  }
-
-  function finish(finalRecords: AnswerRecord[]) {
-    if (meta && finalRecords.length) {
-      const totalScore = finalRecords.reduce((s, r) => s + r.feedback.score, 0);
-      const maxScore = finalRecords.length * 10;
-      saveSession({
-        id: crypto.randomUUID(),
-        title: meta.title,
-        createdAt: Date.now(),
-        totalScore,
-        maxScore,
-        answers: finalRecords,
-      });
-      if (currentItemId) {
-        const pct = Math.round((totalScore / maxScore) * 100);
-        saveLibrary(setItemScore(loadLibrary(), currentItemId, pct));
-      }
-    }
-    setPhase("results");
+    runGeneration(cfg, state.source, false);
   }
 
   function practiceWeak(topics: string[]) {
-    if (!config) return;
-    generate({ ...config, focus: topics.join(", ") }, source, false);
+    if (!state.config) return;
+    regenerate({ ...state.config, focus: topics.join(", ") });
   }
 
   function anotherSet() {
-    if (!config) return;
-    generate(config, source, false);
+    if (!state.config) return;
+    regenerate(state.config);
   }
 
-  /**
-   * Regenerate a practice round for concepts that are due for review, grounded
-   * in the source they came from. Picks the source covering the most due
-   * concepts and focuses generation on them.
-   */
+  /** Regenerate for concepts due for review, grounded in the source they came from. */
   function reviewDue() {
     const lib = loadLibrary();
     const due = dueConcepts(lib.mastery ?? {});
@@ -219,69 +148,106 @@ export default function Home() {
     );
   }
 
-  function restart() {
-    setPhase("setup");
-    setQuestions([]);
-    setRecords([]);
-    setOverview(null);
-    setIndex(0);
-    setError(null);
+  async function handleGrade(answer: string): Promise<Feedback> {
+    const question = state.questions[state.index];
+    const res = await fetch("/api/grade", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question, answer }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Grading failed.");
+    const feedback = data.feedback as Feedback;
+    dispatch({ type: "ANSWERED", record: { question, answer, feedback } });
+
+    // Learner model update + eval capture (side-effects, local).
+    const lib = loadLibrary();
+    const mastery = { ...(lib.mastery ?? {}) };
+    const key = conceptKey(question.topic);
+    mastery[key] = updateConcept(mastery[key], question.topic, feedback.score, {
+      sourceItemId: state.currentItemId ?? undefined,
+    });
+    saveLibrary({ ...lib, mastery });
+    captureAnswer(question, answer, feedback);
+
+    return feedback;
   }
 
-  if (phase === "library") {
+  function finish() {
+    const records = state.records;
+    if (state.meta && records.length) {
+      const totalScore = records.reduce((s, r) => s + r.feedback.score, 0);
+      const maxScore = records.length * 10;
+      saveSession({
+        id: crypto.randomUUID(),
+        title: state.meta.title,
+        createdAt: Date.now(),
+        totalScore,
+        maxScore,
+        answers: records,
+      });
+      if (state.currentItemId) {
+        const pct = Math.round((totalScore / maxScore) * 100);
+        saveLibrary(setItemScore(loadLibrary(), state.currentItemId, pct));
+      }
+    }
+    dispatch({ type: "FINISH" });
+  }
+
+  if (state.phase === "library") {
     return (
       <LibraryScreen
         onOpenItem={openItem}
-        onNewSource={() => setPhase("setup")}
+        onNewSource={() => dispatch({ type: "NAV", phase: "setup" })}
       />
     );
   }
 
-  if (phase === "progress") {
+  if (state.phase === "progress") {
     return (
       <ProgressScreen
-        busy={busy}
-        busyLabel={busyLabel}
+        busy={state.busy}
+        busyLabel={state.busyLabel}
         onReviewDue={reviewDue}
-        onNewSource={() => setPhase("setup")}
+        onNewSource={() => dispatch({ type: "NAV", phase: "setup" })}
       />
     );
   }
 
-  if (phase === "overview" && overview) {
+  if (state.phase === "overview" && state.overview) {
     return (
       <OverviewScreen
-        overview={overview}
-        sourceTitle={meta?.title ?? ""}
-        questionCount={questions.length}
-        onStart={() => setPhase("study")}
+        overview={state.overview}
+        sourceTitle={state.meta?.title ?? ""}
+        questionCount={state.questions.length}
+        onStart={() => dispatch({ type: "TO_STUDY" })}
       />
     );
   }
 
-  if (phase === "study") {
+  if (state.phase === "study") {
     return (
       <StudyScreen
-        questions={questions}
-        index={index}
-        records={records}
+        questions={state.questions}
+        index={state.index}
+        records={state.records}
         onSubmit={handleGrade}
-        onNext={() => setIndex((i) => i + 1)}
-        onFinish={() => finish(records)}
+        onNext={() => dispatch({ type: "NEXT" })}
+        onFinish={finish}
       />
     );
   }
 
-  if (phase === "results") {
+  if (state.phase === "results") {
     return (
       <ResultsScreen
-        records={records}
-        busy={busy}
-        busyLabel={busyLabel}
+        records={state.records}
+        busy={state.busy}
+        busyLabel={state.busyLabel}
         onPracticeWeak={practiceWeak}
         onAnotherSet={anotherSet}
-        onRestart={restart}
-        onOpenProgress={() => setPhase("progress")}
+        onRestart={() => dispatch({ type: "RESTART" })}
+        onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
       />
     );
   }
@@ -289,11 +255,11 @@ export default function Home() {
   return (
     <SetupScreen
       onReady={handleReady}
-      onOpenHistory={() => setPhase("library")}
-      onOpenProgress={() => setPhase("progress")}
-      busy={busy}
-      busyLabel={busyLabel}
-      error={error}
+      onOpenHistory={() => dispatch({ type: "NAV", phase: "library" })}
+      onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
+      busy={state.busy}
+      busyLabel={state.busyLabel}
+      error={state.error}
     />
   );
 }
