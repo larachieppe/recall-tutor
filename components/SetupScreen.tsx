@@ -120,8 +120,9 @@ export default function SetupScreen({
           className="mt-5 max-w-xl text-[16px] leading-relaxed"
           style={{ color: "var(--muted)" }}
         >
-          Paste a link or upload a file. Get medium-difficulty questions, answer
-          them, and receive detailed, rubric-based feedback.
+          Paste a link — an article or a YouTube video — or upload a file. Get
+          medium-difficulty questions, answer them, and receive detailed,
+          rubric-based feedback.
         </p>
       </header>
 

@@ -4,6 +4,7 @@ import mammoth from "mammoth";
 import { extractText, getDocumentProxy } from "unpdf";
 import dns from "node:dns/promises";
 import net from "node:net";
+import { fetchYouTubeTranscript, parseYouTubeId } from "./youtube";
 
 export interface Extracted {
   title: string;
@@ -148,6 +149,13 @@ async function safeFetch(raw: string): Promise<string> {
 }
 
 export async function extractFromUrl(url: string): Promise<Extracted> {
+  // YouTube links: learn from the spoken transcript, not the (JS-rendered) page.
+  const ytId = parseYouTubeId(url);
+  if (ytId) {
+    const yt = await fetchYouTubeTranscript(ytId);
+    return { title: yt.title, text: clean(yt.text) };
+  }
+
   const html = await safeFetch(url);
   const dom = new JSDOM(html); // no `url` option → no resource loading
   const doc = dom.window.document;

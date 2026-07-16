@@ -47,6 +47,15 @@ browser's `localStorage`.
   criterion (not against one exact answer), so valid alternative wording gets
   credit.
 
+## YouTube videos
+
+Paste a YouTube link as a source and the app studies the video's **transcript**.
+YouTube blocks free server-side caption scraping (proof-of-origin tokens), so
+this uses a managed transcript API: set `SUPADATA_API_KEY` (free tier at
+<https://supadata.ai>). Without it, YouTube links show a "not set up yet"
+message. The provider call is isolated in `lib/youtube.ts` (`fetchTranscriptText`)
+so you can swap providers.
+
 ## Model
 
 Defaults to `claude-opus-4-8` (highest quality). To trade quality for lower cost,
