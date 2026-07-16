@@ -11,6 +11,7 @@ import type {
   QuestionType,
 } from "./types";
 import { QUESTION_TYPE_LABELS } from "./types";
+import { normalizeToTen } from "./rubric";
 import { randomUUID } from "crypto";
 
 /** Keep prompts well under the context window; MVP-sized docs fit directly. */
@@ -152,11 +153,11 @@ function normalizeQuestion(
   q: RawQuestion,
   difficulty: GenerateConfig["difficulty"],
 ): Question {
-  // Re-scale rubric points to sum to exactly 10 so scoring is consistent.
-  const total = q.rubric.reduce((s, c) => s + (c.points || 0), 0) || 1;
-  const rubric = q.rubric.map((c) => ({
+  // Deterministically rescale rubric points to sum to exactly 10.
+  const points = normalizeToTen(q.rubric.map((c) => c.points || 0));
+  const rubric = q.rubric.map((c, i) => ({
     description: c.description,
-    points: Math.max(1, Math.round((c.points / total) * 10)),
+    points: points[i],
   }));
   return {
     id: randomUUID(),

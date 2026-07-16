@@ -1,14 +1,46 @@
-# Recall — active-recall tutor
+# Recall — an adaptive active-recall tutor
 
-Turn any link or file into medium-difficulty practice questions with rubric-based
-feedback. Paste a URL or upload a PDF/DOCX/TXT/MD, choose difficulty and question
-types, answer one question at a time, and get detailed feedback: what you got
-right, what was missing, a stronger answer, and a follow-up. At the end you see
-your strengths and weakest topics and can run another round focused on weak areas.
+Recall turns lectures, papers, videos, and documents into **free-response
+practice with rubric-grounded AI feedback**. Paste a URL, a YouTube link, or a
+media file — or upload a PDF/DOCX/TXT — and Recall extracts the content,
+generates medium-difficulty questions grounded in specific source passages,
+grades your written answers **criterion by criterion** (not by exact-wording
+match), and then targets your weakest topics for another round.
 
-Built with Next.js + TypeScript + Tailwind, using the Claude API for question
-generation and answer grading. No database or login — sessions are kept in your
-browser's `localStorage`.
+**Live demo:** <https://recall-tutor.onrender.com>
+
+### Highlights
+
+- **Multimodal ingestion** — web pages, PDF/DOCX/TXT, YouTube transcripts, and
+  audio/video via speech-to-text.
+- **Structured LLM outputs** — questions and grades come back as schema-validated
+  JSON, not fragile hand-parsed text.
+- **Criterion-level rubric grading** — each answer is scored per rubric criterion
+  with cited evidence, so valid paraphrases get credit and unsupported claims are
+  flagged.
+- **Source-grounded questions** — every question stores the passage it came from.
+- **Personalized remediation** — weakest topics drive the next practice round.
+- **Local-first, optional cloud sync** — works with zero backend; optional GitHub
+  sign-in + Neon Postgres syncs History across devices.
+- **Production hygiene** — SSRF protection, per-IP rate limiting, security
+  headers, a unit-test suite, and CI.
+
+### Pipeline
+
+```mermaid
+flowchart LR
+  S["URL / file / YouTube / media"] --> E["Extract or transcribe"]
+  E --> O["Study-notes overview"]
+  E --> G["Generate grounded questions + rubrics"]
+  G --> A["Learner answers (free response)"]
+  A --> GR["Rubric grading, criterion by criterion"]
+  GR --> F["Feedback + weak-topic tracking"]
+  F --> R["Remediation round"]
+```
+
+Built with Next.js (App Router) + TypeScript + Tailwind and the Claude API.
+**Local-first by default** — sessions live in the browser's `localStorage`;
+GitHub sign-in and Postgres sync are optional (see [Cloud sync](#cloud-sync-optional--accounts--cross-device-history)).
 
 ## Setup
 
@@ -128,9 +160,28 @@ this — it only turns on when all the env vars below are set.
 > `NEXT_PUBLIC_AUTH_ENABLED` without the backend secrets will show sign-in but
 > log a server-configuration error until the rest are set.
 
-## Possible next steps
+## Testing & CI
 
-- Persist sessions to a database (Supabase) + accounts, so history syncs.
-- Chunk + embed long documents instead of sending the first ~60k characters.
-- More question types (multiple choice, cloze/flashcards, calculations).
-- Spaced repetition scheduling for weak topics across sessions.
+```bash
+npm test        # Vitest unit tests (rubric normalization, URL/media parsing, mastery)
+npm run build   # also type-checks the whole project
+```
+
+GitHub Actions runs the tests and build on every push/PR (`.github/workflows/ci.yml`).
+
+## Roadmap
+
+Already shipped: optional Neon Postgres + Auth.js cross-device sync, YouTube
+transcripts, and audio/video transcription (Phase 1 — see
+[`docs/video-transcription-plan.md`](docs/video-transcription-plan.md)).
+
+Next:
+
+- **Long-document retrieval** — structure-aware chunking + embeddings with
+  diversity-aware selection, instead of sending only the first ~60k characters.
+- **Concept-level mastery model** — track per-concept mastery from rubric
+  criteria and select the next question from the learner profile.
+- **Spaced repetition** — schedule individual concepts (SM-2 / FSRS) for review.
+- **Grading evaluation** — a hand-labeled benchmark comparing rubric grading to
+  human grades (measured, not invented numbers).
+- **Streaming pipeline stages** and durable background jobs for long media.
