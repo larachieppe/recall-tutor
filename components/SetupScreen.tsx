@@ -9,6 +9,8 @@ import type {
 } from "@/lib/types";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { BrandMark, PillButton } from "@/components/ui";
+import { AUTH_ENABLED } from "@/lib/auth-flag";
+import AuthButton from "@/components/AuthButton";
 
 const ALL_TYPES: QuestionType[] = [
   "short_answer",
@@ -99,13 +101,16 @@ export default function SetupScreen({
               RECALL
             </span>
           </div>
-          <button
-            onClick={onOpenHistory}
-            className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
-            style={{ borderColor: "var(--line)", color: "var(--blue)" }}
-          >
-            History
-          </button>
+          <div className="flex items-center gap-3">
+            {AUTH_ENABLED && <AuthButton />}
+            <button
+              onClick={onOpenHistory}
+              className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
+              style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+            >
+              History
+            </button>
+          </div>
         </div>
         <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight md:text-6xl">
           Turn any source into{" "}

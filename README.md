@@ -70,6 +70,41 @@ Note: Render's free tier sleeps after ~15 min idle (first request then takes
 ~30–50s) and has 512 MB RAM; large PDF/URL parsing can be memory-heavy, so bump
 to a paid instance if you hit out-of-memory errors.
 
+## Cloud sync (optional) — accounts + cross-device history
+
+By default, History is stored locally in your browser. You can optionally enable
+sign-in so History/groups sync across devices, backed by **Neon** (Postgres) and
+**Auth.js (NextAuth)** with GitHub sign-in. The app runs fine without any of
+this — it only turns on when all the env vars below are set.
+
+1. **Neon** — create a project at [neon.tech](https://neon.tech), then copy the
+   **pooled** connection string (Connect → "Pooled connection") into
+   `DATABASE_URL`.
+
+2. **GitHub OAuth app** — [github.com/settings/developers](https://github.com/settings/developers)
+   → New OAuth App. Set the **Authorization callback URL** to
+   `https://YOUR-SITE/api/auth/callback/github` (and `http://localhost:3000/...`
+   for local dev). Copy the client id/secret into `AUTH_GITHUB_ID` /
+   `AUTH_GITHUB_SECRET`.
+
+3. **Secrets** — generate `AUTH_SECRET` with `openssl rand -base64 33`. Set all
+   of these (see `.env.local.example`):
+   `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`,
+   `NEXT_PUBLIC_AUTH_ENABLED=true`, and (on Render) `AUTH_URL=https://YOUR-SITE`.
+
+4. **Create the tables** — with `DATABASE_URL` set, run:
+
+   ```bash
+   npm run db:push
+   ```
+
+5. Restart / redeploy. A **Sign in to sync** button appears; after signing in,
+   your local History is pushed up and thereafter syncs across devices.
+
+> Set **all** the auth env vars together. Enabling only
+> `NEXT_PUBLIC_AUTH_ENABLED` without the backend secrets will show sign-in but
+> log a server-configuration error until the rest are set.
+
 ## Possible next steps
 
 - Persist sessions to a database (Supabase) + accounts, so history syncs.

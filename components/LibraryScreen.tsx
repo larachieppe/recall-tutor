@@ -16,6 +16,8 @@ import {
 } from "@/lib/library";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { BrandMark, PillButton } from "@/components/ui";
+import { AUTH_ENABLED } from "@/lib/auth-flag";
+import AuthButton from "@/components/AuthButton";
 
 interface Props {
   onOpenItem: (item: HistoryItem) => void;
@@ -35,6 +37,15 @@ export default function LibraryScreen({ onOpenItem, onNewSource }: Props) {
 
   useEffect(() => {
     setLibrary(ensureDefaultGroup(loadLibrary()));
+  }, []);
+
+  // Reload when the cloud-sync layer pulls a fresh copy from the server.
+  useEffect(() => {
+    function reload() {
+      setLibrary(ensureDefaultGroup(loadLibrary()));
+    }
+    window.addEventListener("recall:lib-remote", reload);
+    return () => window.removeEventListener("recall:lib-remote", reload);
   }, []);
 
   function apply(next: Library) {
@@ -70,9 +81,12 @@ export default function LibraryScreen({ onOpenItem, onNewSource }: Props) {
           <BrandMark size={24} />
           <span className="text-[16px] font-bold tracking-[0.22em]">RECALL</span>
         </div>
-        <PillButton onClick={onNewSource} variant="light">
-          New source
-        </PillButton>
+        <div className="flex items-center gap-3">
+          {AUTH_ENABLED && <AuthButton />}
+          <PillButton onClick={onNewSource} variant="light">
+            New source
+          </PillButton>
+        </div>
       </div>
 
       <div className="mb-6 flex items-end justify-between">

@@ -42,9 +42,17 @@ export function loadLibrary(): Library {
   return empty();
 }
 
-export function saveLibrary(lib: Library): void {
+/** Write to localStorage without notifying the sync layer. */
+export function saveLibraryRaw(lib: Library): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY, JSON.stringify(lib));
+}
+
+/** Save locally and notify the cloud-sync layer (if signed in) to push. */
+export function saveLibrary(lib: Library): void {
+  if (typeof window === "undefined") return;
+  saveLibraryRaw(lib);
+  window.dispatchEvent(new Event("recall:lib-local"));
 }
 
 /** Guarantee at least one group exists so there is always a drop target. */
