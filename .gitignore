@@ -5,3 +5,8 @@ next-env.d.ts
 .env.local
 *.tsbuildinfo
 .DS_Store
+
+# Eval harness: your labeled data + raw outputs (can be large/private).
+# Commit eval/results/report.md yourself if you want to publish the numbers.
+/eval/dataset.jsonl
+/eval/results/

@@ -174,6 +174,13 @@ npm run build   # also type-checks the whole project
 
 GitHub Actions runs the tests and build on every push/PR (`.github/workflows/ci.yml`).
 
+**Grading evaluation.** A harness in [`eval/`](eval/README.md) measures how well
+the rubric grader agrees with human grades — MAE, quadratic weighted kappa,
+criterion-level precision/recall, score variance across runs, and a comparison
+against a reference-answer-only baseline. Label a dataset, then
+`npm run eval && npm run eval:report`. (Results are only as real as the labels
+you provide — no numbers are published here until they're measured.)
+
 ## Roadmap
 
 Shipped: optional Neon Postgres + Auth.js cross-device sync; YouTube transcripts;
