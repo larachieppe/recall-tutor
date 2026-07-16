@@ -13,6 +13,7 @@ import type {
 import { QUESTION_TYPE_LABELS } from "./types";
 import { normalizeToTen } from "./rubric";
 import { assembleSource } from "./chunk";
+import { verifyQuestions } from "./verify";
 import { randomUUID } from "crypto";
 
 /** Keep prompts well under the context window; MVP-sized docs fit directly. */
@@ -114,9 +115,13 @@ export async function generateQuestions(
     ? `\nThe SOURCE below is long, so it is assembled from ${assembled.sections} sections spanning the ENTIRE document (separated by "----- (section break) -----"). Draw questions from across ALL sections — including the later ones — for broad coverage; do not focus only on the beginning.`
     : "";
 
+  // Over-generate a small buffer so the quality filter has candidates to choose
+  // from without dropping below the requested count.
+  const ask = Math.min(config.count + 2, 15);
+
   const userPrompt = `${difficultyGuidance(config)}
 
-Generate exactly ${config.count} question(s). Distribute them across these question types:
+Generate exactly ${ask} question(s). Distribute them across these question types:
 ${typeList}
 ${focusLine}${coverageLine}
 
@@ -141,7 +146,21 @@ ${assembled.text}
     message.content,
   );
 
-  return parsed.questions.map((q) => normalizeQuestion(q, config.difficulty));
+  const normalized = parsed.questions.map((q) =>
+    normalizeQuestion(q, config.difficulty),
+  );
+
+  // Quality gate: drop duplicates, ungrounded, or answer-leaking questions.
+  const { kept, dropped } = verifyQuestions(normalized, source, config.count);
+  if (dropped.length) {
+    const counts = dropped.reduce<Record<string, number>>((acc, d) => {
+      acc[d.reason] = (acc[d.reason] || 0) + 1;
+      return acc;
+    }, {});
+    console.log("[generate] quality filter dropped:", counts);
+  }
+
+  return (kept.length ? kept : normalized).slice(0, config.count);
 }
 
 interface RawQuestion {
