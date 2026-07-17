@@ -58,6 +58,20 @@ describe("verifyQuestions", () => {
     expect(dropped[0].reason).toBe("reveals-answer");
   });
 
+  it("blanks a hint that gives away the answer", () => {
+    const leaky = q({
+      hint: "A large step overshoots the minimum so the loss oscillates or diverges.",
+    });
+    const { kept } = verifyQuestions([leaky], source, 5);
+    expect(kept[0].hint).toBe("");
+  });
+
+  it("keeps a subtle, non-obvious hint", () => {
+    const hint = "Think about what happens to the step size when the rate is very big.";
+    const { kept } = verifyQuestions([q({ hint })], source, 5);
+    expect(kept[0].hint).toBe(hint);
+  });
+
   it("drops empty/malformed questions", () => {
     const { dropped } = verifyQuestions([q({ question: "" })], source, 5);
     expect(dropped[0].reason).toBe("empty");

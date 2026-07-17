@@ -35,6 +35,7 @@ export default function StudyScreen({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(false);
 
   async function submit() {
     setGrading(true);
@@ -53,6 +54,7 @@ export default function StudyScreen({
     setAnswer("");
     setFeedback(null);
     setError(null);
+    setShowHint(false);
     if (isLast) onFinish();
     else onNext();
   }
@@ -105,10 +107,32 @@ export default function StudyScreen({
         />
 
         {!feedback && (
-          <div className="mt-5">
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
             <PillButton onClick={submit} disabled={grading}>
               {grading ? "Grading…" : "Submit answer"}
             </PillButton>
+            {question.hint && !showHint && (
+              <button
+                onClick={() => setShowHint(true)}
+                disabled={grading}
+                className="text-[13px] font-semibold disabled:opacity-50"
+                style={{ color: "var(--muted)" }}
+              >
+                Stuck? Reveal a hint
+              </button>
+            )}
+          </div>
+        )}
+
+        {!feedback && showHint && question.hint && (
+          <div
+            className="mt-4 rounded-xl px-4 py-3 text-[14px] leading-relaxed tint"
+            style={{ color: "var(--ink)" }}
+          >
+            <span className="font-semibold" style={{ color: "var(--blue)" }}>
+              Hint:{" "}
+            </span>
+            {question.hint}
           </div>
         )}
 

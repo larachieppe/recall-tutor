@@ -83,6 +83,11 @@ export function verifyQuestions(
       continue;
     }
 
+    // Keep hints subtle: blank any hint that basically gives away the answer.
+    if (q.hint && jaccard(words(q.hint), words(q.reference_answer)) > 0.5) {
+      q.hint = "";
+    }
+
     kept.push(q);
     keptWords.push(qw);
   }

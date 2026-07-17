@@ -39,6 +39,7 @@ const questionSchema = {
           topic: { type: "string" },
           reference_answer: { type: "string" },
           source_excerpt: { type: "string" },
+          hint: { type: "string" },
           rubric: {
             type: "array",
             items: {
@@ -58,6 +59,7 @@ const questionSchema = {
           "topic",
           "reference_answer",
           "source_excerpt",
+          "hint",
           "rubric",
         ],
       },
@@ -83,6 +85,7 @@ For each question also produce:
 - reference_answer: a concise, correct model answer grounded in the source
 - rubric: 2-4 independently checkable criteria, each worth a whole number of points that together sum to exactly 10. Each criterion describes one specific idea the answer should contain.
 - source_excerpt: a short verbatim (or near-verbatim) passage from the source that supports the answer
+- hint: a SUBTLE nudge (one sentence) for a learner who is stuck. It should point them toward the right approach, the relevant idea, or what to think about — WITHOUT revealing the answer, naming the key terms from the reference answer, or giving it away. A good hint makes them think ("Consider what happens to the step size…"); a bad hint states the answer. Never include the answer in the hint.
 
 Return ONLY the JSON object matching the schema.`;
 
@@ -168,6 +171,7 @@ interface RawQuestion {
   topic: string;
   reference_answer: string;
   source_excerpt: string;
+  hint: string;
   rubric: { description: string; points: number }[];
 }
 
@@ -189,6 +193,7 @@ function normalizeQuestion(
     difficulty,
     reference_answer: q.reference_answer,
     source_excerpt: q.source_excerpt,
+    hint: q.hint,
     rubric,
   };
 }

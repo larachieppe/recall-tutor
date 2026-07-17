@@ -22,6 +22,8 @@ export interface Question {
   rubric: RubricCriterion[];
   /** The passage from the source that supports this question. */
   source_excerpt: string;
+  /** A subtle nudge the learner can reveal when stuck (doesn't give the answer). */
+  hint?: string;
 }
 
 export type CriterionStatus = "met" | "partial" | "missing";
