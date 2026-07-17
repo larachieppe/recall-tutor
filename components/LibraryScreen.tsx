@@ -18,15 +18,25 @@ import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { BrandMark, PillButton } from "@/components/ui";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import AuthButton from "@/components/AuthButton";
+import SignInPrompt from "@/components/SignInPrompt";
 
 interface Props {
   onOpenItem: (item: HistoryItem) => void;
   onNewSource: () => void;
+  busy: boolean;
+  busyLabel: string;
+  error: string | null;
 }
 
 type ItemDrop = { groupId: string; beforeId: string | null };
 
-export default function LibraryScreen({ onOpenItem, onNewSource }: Props) {
+export default function LibraryScreen({
+  onOpenItem,
+  onNewSource,
+  busy,
+  busyLabel,
+  error,
+}: Props) {
   const [library, setLibrary] = useState<Library>({ items: {}, groups: [] });
 
   // drag state
@@ -114,6 +124,24 @@ export default function LibraryScreen({ onOpenItem, onNewSource }: Props) {
           style={{ color: "var(--muted)" }}
         >
           No sources yet. Study a link or file and it will show up here.
+        </div>
+      )}
+
+      {busy && (
+        <div
+          className="mb-4 rounded-2xl px-5 py-4 text-center text-[15px] font-semibold tint"
+          style={{ color: "var(--blue)" }}
+        >
+          {busyLabel || "Generating fresh questions from this source…"}
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 flex flex-col items-center">
+          <p className="text-center text-[14px]" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+          {AUTH_ENABLED && /sign in/i.test(error) && <SignInPrompt />}
         </div>
       )}
 

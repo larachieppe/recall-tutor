@@ -87,6 +87,7 @@ export default function Home() {
   }
 
   function openItem(item: HistoryItem) {
+    if (state.busy) return; // ignore clicks while a round is already generating
     startStudy(
       item.source,
       { title: item.title, length: item.source.length },
@@ -199,6 +200,9 @@ export default function Home() {
       <LibraryScreen
         onOpenItem={openItem}
         onNewSource={() => dispatch({ type: "NAV", phase: "setup" })}
+        busy={state.busy}
+        busyLabel={state.busyLabel}
+        error={state.error}
       />
     );
   }
