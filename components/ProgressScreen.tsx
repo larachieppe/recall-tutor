@@ -14,6 +14,7 @@ import { BrandMark, PillButton } from "@/components/ui";
 import { captureCount, capturesToJsonl, clearCaptures } from "@/lib/capture";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import SignInPrompt from "@/components/SignInPrompt";
+import { activeStreak, type StreakData } from "@/lib/streak";
 
 interface Props {
   busy: boolean;
@@ -31,17 +32,22 @@ export default function ProgressScreen({
   error,
 }: Props) {
   const [mastery, setMastery] = useState<MasteryMap>({});
+  const [streak, setStreak] = useState<StreakData | undefined>(undefined);
   const [captured, setCaptured] = useState(0);
 
   useEffect(() => {
     const load = () => {
-      setMastery(loadLibrary().mastery ?? {});
+      const lib = loadLibrary();
+      setMastery(lib.mastery ?? {});
+      setStreak(lib.streak);
       setCaptured(captureCount());
     };
     load();
     window.addEventListener("recall:lib-remote", load);
     return () => window.removeEventListener("recall:lib-remote", load);
   }, []);
+
+  const streakDays = activeStreak(streak);
 
   function downloadDataset() {
     const blob = new Blob([capturesToJsonl()], {
@@ -89,6 +95,27 @@ export default function ProgressScreen({
           ? ` · ${Math.round(avgMastery * 100)}% average mastery · ${due.length} due for review`
           : ""}
       </p>
+
+      {(streakDays > 0 || (streak?.longest ?? 0) > 0) && (
+        <div
+          className="mt-5 flex items-center gap-3 rounded-2xl px-5 py-4 tint"
+        >
+          <span className="text-2xl" aria-hidden="true">
+            🔥
+          </span>
+          <p className="text-[15px] font-semibold">
+            {streakDays > 0
+              ? `${streakDays}-day review streak`
+              : "Streak lapsed — study today to restart it"}
+            {(streak?.longest ?? 0) > 0 && (
+              <span className="font-normal" style={{ color: "var(--muted)" }}>
+                {"  ·  longest "}
+                {streak?.longest}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       {concepts.length === 0 && (
         <div

@@ -1,5 +1,6 @@
 import type { GenerateConfig } from "./types";
 import type { MasteryMap } from "./mastery";
+import type { StreakData } from "./streak";
 
 /** A past input (source the user studied), stored so it can be re-run. */
 export interface HistoryItem {
@@ -22,6 +23,8 @@ export interface Library {
   groups: Group[]; // ordered
   /** Per-concept learner model + spaced-repetition schedule. */
   mastery?: MasteryMap;
+  /** Daily review streak. */
+  streak?: StreakData;
 }
 
 const KEY = "recall.library.v1";

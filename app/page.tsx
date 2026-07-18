@@ -19,6 +19,7 @@ import {
 } from "@/lib/library";
 import { conceptKey, dueConcepts, updateConcept } from "@/lib/mastery";
 import { captureAnswer } from "@/lib/capture";
+import { recordStudyDay } from "@/lib/streak";
 
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -168,7 +169,7 @@ export default function Home() {
     mastery[key] = updateConcept(mastery[key], question.topic, feedback.score, {
       sourceItemId: state.currentItemId ?? undefined,
     });
-    saveLibrary({ ...lib, mastery });
+    saveLibrary({ ...lib, mastery, streak: recordStudyDay(lib.streak) });
     captureAnswer(question, answer, feedback);
 
     return feedback;

@@ -14,6 +14,7 @@ import AuthButton from "@/components/AuthButton";
 import SignInPrompt from "@/components/SignInPrompt";
 import { loadLibrary } from "@/lib/library";
 import { dueConcepts } from "@/lib/mastery";
+import { activeStreak } from "@/lib/streak";
 
 const ALL_TYPES: QuestionType[] = [
   "short_answer",
@@ -42,6 +43,7 @@ export default function SetupScreen({
   error,
 }: Props) {
   const [dueCount, setDueCount] = useState(0);
+  const [streakDays, setStreakDays] = useState(0);
 
   useEffect(() => {
     const refresh = () => {
@@ -53,6 +55,7 @@ export default function SetupScreen({
           (c) => c.sourceItemId && lib.items[c.sourceItemId],
         ).length,
       );
+      setStreakDays(activeStreak(lib.streak));
     };
     refresh();
     window.addEventListener("recall:lib-remote", refresh);
@@ -132,6 +135,16 @@ export default function SetupScreen({
           </div>
           <div className="flex items-center gap-3">
             {AUTH_ENABLED && <AuthButton />}
+            {streakDays > 0 && (
+              <button
+                onClick={onOpenProgress}
+                title={`${streakDays}-day review streak`}
+                className="rounded-full px-3 py-2 text-[13px] font-bold tint"
+                style={{ color: "var(--blue)" }}
+              >
+                🔥 {streakDays}
+              </button>
+            )}
             <button
               onClick={onOpenProgress}
               className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
