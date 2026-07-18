@@ -180,6 +180,36 @@ with a per-IP rate limit and an app-wide daily cap (`DAILY_AI_LIMIT`), this keep
 strangers from running up your Anthropic bill. Also set a hard monthly spend
 limit on the Anthropic key itself — that's the real financial backstop.
 
+## Review reminders (optional) — closed-browser push
+
+The app shows in-tab reminders for due reviews out of the box. You can optionally
+enable **Web Push** so reminders arrive even when the tab is closed. This builds
+on the cloud-sync block above (it needs `DATABASE_URL` to store subscriptions and
+to read each signed-in user's due count).
+
+1. **Generate VAPID keys** once:
+
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+2. **Set the env vars** (see `.env.local.example`): `VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` URL), and
+   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (the **same** public key, for the browser).
+
+3. **Create the table** — `npm run db:push` (adds `push_subscription`).
+
+4. **Schedule the send job.** `POST /api/push/send` fans out reminders; protect
+   it with `CRON_SECRET` and call it once a day from any scheduler (cron-job.org,
+   a GitHub Actions cron, Render Cron, …) with the header
+   `Authorization: Bearer <CRON_SECRET>`. It reads each signed-in user's stored
+   mastery, counts what's actually due, and only notifies when there's something
+   to review — so reminders are personalized, not spam.
+
+Users opt in with **"🔔 Remind me daily"** on the due-review banner, which
+registers the service worker ([`public/sw.js`](public/sw.js)) and subscribes.
+Without the VAPID keys the app silently falls back to in-tab reminders only.
+
 ## Testing & CI
 
 ```bash

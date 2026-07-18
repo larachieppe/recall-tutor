@@ -69,3 +69,17 @@ export const libraries = pgTable("library", {
   data: jsonb("data").notNull(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
+
+// --- Web push subscriptions ---------------------------------------------
+// One row per browser push subscription. `userId` links it to a signed-in
+// account so the send job can look up that user's due-review count from their
+// stored library. Anonymous subscriptions (userId null) can still receive a
+// generic nudge. Keyed by the endpoint URL, which is unique per subscription.
+
+export const pushSubscriptions = pgTable("push_subscription", {
+  endpoint: text("endpoint").primaryKey(),
+  userId: text("userId").references(() => users.id, { onDelete: "cascade" }),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+});

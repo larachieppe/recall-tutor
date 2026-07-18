@@ -21,6 +21,7 @@ import {
   requestNotifications,
   notifyDueReviews,
 } from "@/lib/notify";
+import { enablePush, pushConfiguredClient } from "@/lib/push";
 
 const ALL_TYPES: QuestionType[] = [
   "short_answer",
@@ -78,7 +79,11 @@ export default function SetupScreen({
   async function enableReminders() {
     const granted = await requestNotifications();
     setNotifyPerm(notificationPermission());
-    if (granted && dueCount > 0) notifyDueReviews(dueCount);
+    if (!granted) return;
+    if (dueCount > 0) notifyDueReviews(dueCount);
+    // If the server has push configured, also subscribe so reminders can
+    // arrive when the app is closed (signed-in users get personalized ones).
+    if (pushConfiguredClient()) await enablePush();
   }
   const [tab, setTab] = useState<"link" | "file">("link");
   const [url, setUrl] = useState("");

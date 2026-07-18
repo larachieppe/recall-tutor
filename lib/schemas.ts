@@ -72,6 +72,18 @@ export const libraryPutInput = z.object({
   library: z.record(z.string(), z.unknown()),
 });
 
+export const pushSubscribeInput = z.object({
+  endpoint: z.string().regex(/^https?:\/\//i, "Invalid push endpoint."),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+});
+
+export const pushUnsubscribeInput = z.object({
+  endpoint: z.string().min(1),
+});
+
 /** Validate a request body; returns the typed data or a user-facing message. */
 export function parseBody<T>(
   schema: z.ZodType<T>,
