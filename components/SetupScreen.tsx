@@ -15,6 +15,11 @@ import SignInPrompt from "@/components/SignInPrompt";
 import { loadLibrary } from "@/lib/library";
 import { dueConcepts } from "@/lib/mastery";
 import { activeStreak } from "@/lib/streak";
+import {
+  notificationPermission,
+  requestNotifications,
+  notifyDueReviews,
+} from "@/lib/notify";
 
 const ALL_TYPES: QuestionType[] = [
   "short_answer",
@@ -44,6 +49,9 @@ export default function SetupScreen({
 }: Props) {
   const [dueCount, setDueCount] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
+  const [notifyPerm, setNotifyPerm] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
 
   useEffect(() => {
     const refresh = () => {
@@ -58,9 +66,16 @@ export default function SetupScreen({
       setStreakDays(activeStreak(lib.streak));
     };
     refresh();
+    setNotifyPerm(notificationPermission());
     window.addEventListener("recall:lib-remote", refresh);
     return () => window.removeEventListener("recall:lib-remote", refresh);
   }, []);
+
+  async function enableReminders() {
+    const granted = await requestNotifications();
+    setNotifyPerm(notificationPermission());
+    if (granted && dueCount > 0) notifyDueReviews(dueCount);
+  }
   const [tab, setTab] = useState<"link" | "file">("link");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -192,9 +207,28 @@ export default function SetupScreen({
               </p>
             </div>
           </div>
-          <PillButton onClick={onReviewDue} disabled={busy}>
-            {busy ? busyLabel : "Review now"}
-          </PillButton>
+          <div className="flex flex-wrap items-center gap-4">
+            {notifyPerm === "default" && (
+              <button
+                onClick={enableReminders}
+                className="text-[13px] font-semibold"
+                style={{ color: "var(--blue)" }}
+              >
+                🔔 Remind me daily
+              </button>
+            )}
+            {notifyPerm === "granted" && (
+              <span
+                className="text-[13px] font-medium"
+                style={{ color: "var(--muted)" }}
+              >
+                🔔 Reminders on
+              </span>
+            )}
+            <PillButton onClick={onReviewDue} disabled={busy}>
+              {busy ? busyLabel : "Review now"}
+            </PillButton>
+          </div>
         </div>
       )}
 

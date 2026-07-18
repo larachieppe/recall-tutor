@@ -8,6 +8,10 @@ export const anthropic = new Anthropic();
  */
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
+/** Lowest-latency model for snappy, lower-stakes calls (the tutor chat). */
+export const FAST_MODEL =
+  process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-4-5-20251001";
+
 /**
  * Pull the first text block out of a message and JSON.parse it. When adaptive
  * thinking is on, content[0] is a thinking block, so we search for the text one.

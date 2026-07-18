@@ -120,7 +120,7 @@ export async function generateQuestions(
 
   // Over-generate a small buffer so the quality filter has candidates to choose
   // from without dropping below the requested count.
-  const ask = Math.min(config.count + 2, 15);
+  const ask = Math.min(config.count + 1, 15);
 
   const userPrompt = `${difficultyGuidance(config)}
 
@@ -286,9 +286,8 @@ Grade the learner's answer now.`;
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 4000,
-    thinking: { type: "adaptive" },
     output_config: {
-      effort: "medium",
+      effort: "low",
       format: { type: "json_schema", schema: feedbackSchema },
     },
     system: GRADING_SYSTEM,

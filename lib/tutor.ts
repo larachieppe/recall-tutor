@@ -1,4 +1,4 @@
-import { anthropic, MODEL } from "./anthropic";
+import { anthropic, FAST_MODEL } from "./anthropic";
 
 export interface TutorTurn {
   role: "user" | "assistant";
@@ -40,7 +40,7 @@ export async function tutorReply(
   messages: TutorTurn[],
 ): Promise<string> {
   const msg = await anthropic.messages.create({
-    model: MODEL,
+    model: FAST_MODEL,
     max_tokens: 800,
     system: system(ctx),
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
