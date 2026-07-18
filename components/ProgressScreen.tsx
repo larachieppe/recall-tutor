@@ -15,6 +15,8 @@ import { captureCount, capturesToJsonl, clearCaptures } from "@/lib/capture";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import SignInPrompt from "@/components/SignInPrompt";
 import { activeStreak, type StreakData } from "@/lib/streak";
+import { loadSessions, type SavedSession } from "@/lib/session";
+import ProgressCharts from "@/components/ProgressCharts";
 
 interface Props {
   busy: boolean;
@@ -33,6 +35,7 @@ export default function ProgressScreen({
 }: Props) {
   const [mastery, setMastery] = useState<MasteryMap>({});
   const [streak, setStreak] = useState<StreakData | undefined>(undefined);
+  const [sessions, setSessions] = useState<SavedSession[]>([]);
   const [captured, setCaptured] = useState(0);
 
   useEffect(() => {
@@ -40,6 +43,7 @@ export default function ProgressScreen({
       const lib = loadLibrary();
       setMastery(lib.mastery ?? {});
       setStreak(lib.streak);
+      setSessions(loadSessions());
       setCaptured(captureCount());
     };
     load();
@@ -144,6 +148,10 @@ export default function ProgressScreen({
           </p>
           {AUTH_ENABLED && /sign in/i.test(error) && <SignInPrompt />}
         </div>
+      )}
+
+      {concepts.length > 0 && (
+        <ProgressCharts sessions={sessions} concepts={concepts} />
       )}
 
       {concepts.length > 0 && (
