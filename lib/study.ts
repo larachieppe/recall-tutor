@@ -34,12 +34,28 @@ const questionSchema = {
           question: { type: "string" },
           type: {
             type: "string",
-            enum: ["short_answer", "application", "compare_contrast"],
+            enum: [
+              "short_answer",
+              "application",
+              "compare_contrast",
+              "multiple_choice",
+            ],
           },
           topic: { type: "string" },
           reference_answer: { type: "string" },
           source_excerpt: { type: "string" },
           hint: { type: "string" },
+          choices: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "For multiple_choice only: 3-4 answer options (leave empty otherwise).",
+          },
+          answer_index: {
+            type: "integer",
+            description:
+              "For multiple_choice only: 0-based index of the correct option in choices (use 0 otherwise).",
+          },
           rubric: {
             type: "array",
             items: {
@@ -60,6 +76,8 @@ const questionSchema = {
           "reference_answer",
           "source_excerpt",
           "hint",
+          "choices",
+          "answer_index",
           "rubric",
         ],
       },
@@ -86,6 +104,13 @@ For each question also produce:
 - rubric: 2-4 independently checkable criteria, each worth a whole number of points that together sum to exactly 10. Each criterion describes one specific idea the answer should contain.
 - source_excerpt: a short verbatim (or near-verbatim) passage from the source that supports the answer
 - hint: a SUBTLE nudge (one sentence) for a learner who is stuck. It should point them toward the right approach, the relevant idea, or what to think about — WITHOUT revealing the answer, naming the key terms from the reference answer, or giving it away. A good hint makes them think ("Consider what happens to the step size…"); a bad hint states the answer. Never include the answer in the hint.
+
+For multiple_choice questions ONLY:
+- choices: exactly 4 answer options. Exactly one is fully correct; the other three are plausible but wrong distractors grounded in the same source (common misconceptions, close-but-incomplete ideas, or true statements that don't answer the question). Keep options similar in length and style so the answer isn't obvious from format.
+- answer_index: the 0-based index of the correct option within choices.
+- reference_answer: the correct option's text, optionally with a one-sentence explanation of why it is correct.
+- rubric: a single criterion worth 10 points ("Selects the correct option").
+For all OTHER question types, set choices to an empty array and answer_index to 0.
 
 Return ONLY the JSON object matching the schema.`;
 
@@ -172,6 +197,8 @@ interface RawQuestion {
   reference_answer: string;
   source_excerpt: string;
   hint: string;
+  choices?: string[];
+  answer_index?: number;
   rubric: { description: string; points: number }[];
 }
 
@@ -185,15 +212,31 @@ function normalizeQuestion(
     description: c.description,
     points: points[i],
   }));
+
+  // Multiple choice: keep choices only when they form a valid question, and
+  // clamp the answer index into range. Otherwise fall back to short answer so
+  // a malformed MC never reaches the learner as an unanswerable card.
+  let type = q.type;
+  let choices: string[] | undefined;
+  let answer_index: number | undefined;
+  if (q.type === "multiple_choice" && (q.choices?.length ?? 0) >= 2) {
+    choices = q.choices!.map((c) => c.trim()).filter(Boolean);
+    answer_index = Math.max(0, Math.min(choices.length - 1, q.answer_index ?? 0));
+  } else if (q.type === "multiple_choice") {
+    type = "short_answer";
+  }
+
   return {
     id: randomUUID(),
     question: q.question,
-    type: q.type,
+    type,
     topic: q.topic,
     difficulty,
     reference_answer: q.reference_answer,
     source_excerpt: q.source_excerpt,
     hint: q.hint,
+    choices,
+    answer_index,
     rubric,
   };
 }

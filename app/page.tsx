@@ -20,6 +20,18 @@ import {
 import { conceptKey, dueConcepts, updateConcept } from "@/lib/mastery";
 import { captureAnswer } from "@/lib/capture";
 import { recordStudyDay } from "@/lib/streak";
+import {
+  flashcardFeedback,
+  gradeMultipleChoice,
+  type GradeSubmission,
+} from "@/lib/grade-local";
+import {
+  DEMO_CONFIG,
+  DEMO_META,
+  DEMO_OVERVIEW,
+  DEMO_QUESTIONS,
+  DEMO_SOURCE,
+} from "@/lib/demo";
 
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -87,6 +99,23 @@ export default function Home() {
     startStudy(src, m, cfg);
   }
 
+  /** Load the pre-baked demo — no API key, no network. Grades locally. */
+  function startDemo() {
+    dispatch({
+      type: "GENERATE_START",
+      source: DEMO_SOURCE,
+      meta: DEMO_META,
+      config: DEMO_CONFIG,
+      itemId: null,
+      label: "Loading demo…",
+    });
+    dispatch({
+      type: "GENERATE_DONE",
+      questions: DEMO_QUESTIONS,
+      overview: DEMO_OVERVIEW,
+    });
+  }
+
   function openItem(item: HistoryItem) {
     if (state.busy) return; // ignore clicks while a round is already generating
     startStudy(
@@ -150,17 +179,39 @@ export default function Home() {
     );
   }
 
-  async function handleGrade(answer: string): Promise<Feedback> {
+  async function handleGrade(sub: GradeSubmission): Promise<Feedback> {
     const question = state.questions[state.index];
-    const res = await fetch("/api/grade", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question, answer }),
+
+    // Route to the cheapest correct grader: flashcard self-rating and
+    // multiple-choice are graded locally (instant, no key); free-text goes to
+    // the model. Only model-graded answers feed the eval-capture dataset.
+    let feedback: Feedback;
+    let aiGraded = false;
+    if (sub.rating) {
+      feedback = flashcardFeedback(question, sub.rating);
+    } else if (question.type === "multiple_choice") {
+      feedback = gradeMultipleChoice(question, sub.selectedIndex ?? -1);
+    } else {
+      const res = await fetch("/api/grade", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question, answer: sub.answer }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Grading failed.");
+      feedback = data.feedback as Feedback;
+      aiGraded = true;
+    }
+
+    dispatch({
+      type: "ANSWERED",
+      record: {
+        question,
+        answer: sub.answer,
+        feedback,
+        confidence: sub.confidence,
+      },
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Grading failed.");
-    const feedback = data.feedback as Feedback;
-    dispatch({ type: "ANSWERED", record: { question, answer, feedback } });
 
     // Learner model update + eval capture (side-effects, local).
     const lib = loadLibrary();
@@ -170,7 +221,7 @@ export default function Home() {
       sourceItemId: state.currentItemId ?? undefined,
     });
     saveLibrary({ ...lib, mastery, streak: recordStudyDay(lib.streak) });
-    captureAnswer(question, answer, feedback);
+    if (aiGraded) captureAnswer(question, sub.answer, feedback);
 
     return feedback;
   }
@@ -236,7 +287,7 @@ export default function Home() {
       <StudyScreen
         questions={state.questions}
         index={state.index}
-        records={state.records}
+        mode={state.config?.mode ?? "graded"}
         onSubmit={handleGrade}
         onNext={() => dispatch({ type: "NEXT" })}
         onFinish={finish}
@@ -248,6 +299,7 @@ export default function Home() {
     return (
       <ResultsScreen
         records={state.records}
+        title={state.meta?.title ?? "Study session"}
         busy={state.busy}
         busyLabel={state.busyLabel}
         onPracticeWeak={practiceWeak}
@@ -262,6 +314,7 @@ export default function Home() {
   return (
     <SetupScreen
       onReady={handleReady}
+      onTryDemo={startDemo}
       onOpenHistory={() => dispatch({ type: "NAV", phase: "library" })}
       onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
       onReviewDue={reviewDue}

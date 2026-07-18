@@ -78,7 +78,12 @@ export function verifyQuestions(
       continue;
     }
 
-    if (jaccard(qw, words(q.reference_answer)) > 0.6) {
+    // Multiple-choice deliberately shows the answer among the options, so the
+    // "question reveals the reference answer" check doesn't apply to it.
+    if (
+      q.type !== "multiple_choice" &&
+      jaccard(qw, words(q.reference_answer)) > 0.6
+    ) {
       dropped.push({ question: text, reason: "reveals-answer" });
       continue;
     }

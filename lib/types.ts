@@ -1,11 +1,22 @@
 export type Difficulty = "easy" | "medium" | "hard";
-export type QuestionType = "short_answer" | "application" | "compare_contrast";
+export type QuestionType =
+  | "short_answer"
+  | "application"
+  | "compare_contrast"
+  | "multiple_choice";
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   short_answer: "Short answer",
   application: "Application",
   compare_contrast: "Compare & contrast",
+  multiple_choice: "Multiple choice",
 };
+
+/** How a session is practiced: graded free-text/MC, or self-rated flashcards. */
+export type PracticeMode = "graded" | "flashcard";
+
+/** Self-reported confidence before answering (for calibration insight). */
+export type Confidence = "low" | "medium" | "high";
 
 export interface RubricCriterion {
   description: string;
@@ -24,6 +35,10 @@ export interface Question {
   source_excerpt: string;
   /** A subtle nudge the learner can reveal when stuck (doesn't give the answer). */
   hint?: string;
+  /** Multiple-choice only: the answer options (one correct + distractors). */
+  choices?: string[];
+  /** Multiple-choice only: 0-based index of the correct option in `choices`. */
+  answer_index?: number;
 }
 
 export type CriterionStatus = "met" | "partial" | "missing";
@@ -52,6 +67,8 @@ export interface AnswerRecord {
   question: Question;
   answer: string;
   feedback: Feedback;
+  /** Self-reported confidence before answering, if the learner set one. */
+  confidence?: Confidence;
 }
 
 export interface GenerateConfig {
@@ -59,6 +76,8 @@ export interface GenerateConfig {
   count: number;
   types: QuestionType[];
   focus: string;
+  /** Graded (free-text/MC) or self-rated flashcards. Defaults to graded. */
+  mode?: PracticeMode;
 }
 
 export interface SourceMeta {

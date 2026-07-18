@@ -9,7 +9,14 @@ export const generateInput = z.object({
   count: z.coerce.number().int().min(1).max(15).catch(5),
   difficulty: z.enum(["easy", "medium", "hard"]).catch("medium"),
   types: z
-    .array(z.enum(["short_answer", "application", "compare_contrast"]))
+    .array(
+      z.enum([
+        "short_answer",
+        "application",
+        "compare_contrast",
+        "multiple_choice",
+      ]),
+    )
     .catch([]),
   focus: z.string().catch(""),
 });
@@ -31,6 +38,8 @@ export const questionInput = z.object({
   difficulty: z.string().optional(),
   reference_answer: z.string(),
   source_excerpt: z.string().optional().default(""),
+  choices: z.array(z.string()).optional(),
+  answer_index: z.number().optional(),
   rubric: z.array(rubricCriterion).min(1),
 });
 

@@ -1,13 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import type { AnswerRecord } from "@/lib/types";
 import { topicMastery, weakTopics } from "@/lib/session";
 import { PillButton } from "@/components/ui";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import SignInPrompt from "@/components/SignInPrompt";
+import {
+  sessionToMarkdown,
+  sessionToSummary,
+  downloadFile,
+  slugify,
+} from "@/lib/export";
+import { calibration } from "@/lib/grade-local";
 
 interface Props {
   records: AnswerRecord[];
+  title: string;
   busy: boolean;
   busyLabel: string;
   onPracticeWeak: (topics: string[]) => void;
@@ -19,6 +28,7 @@ interface Props {
 
 export default function ResultsScreen({
   records,
+  title,
   busy,
   busyLabel,
   onPracticeWeak,
@@ -27,12 +37,42 @@ export default function ResultsScreen({
   onOpenProgress,
   error,
 }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  function exportMarkdown() {
+    downloadFile(
+      `${slugify(title)}-recall.md`,
+      sessionToMarkdown(records, { title }),
+    );
+  }
+
+  async function copySummary() {
+    const summary = sessionToSummary(records, { title });
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (e.g. insecure context) — fall back to a download.
+      downloadFile(`${slugify(title)}-summary.txt`, summary, "text/plain");
+    }
+  }
+
   const total = records.reduce((s, r) => s + r.feedback.score, 0);
   const max = records.length * 10;
   const pct = max ? Math.round((total / max) * 100) : 0;
   const mastery = topicMastery(records);
   const weak = weakTopics(records);
   const strong = mastery.filter((t) => t.avgScore >= 7).map((t) => t.topic);
+  const cal = calibration(records);
+  const calMessage =
+    cal.rated === 0
+      ? null
+      : cal.overconfident > 0
+        ? `You felt confident on ${cal.overconfident} question${cal.overconfident === 1 ? "" : "s"} that scored low — worth a closer review.`
+        : cal.underconfident > 0
+          ? `You underrated yourself on ${cal.underconfident} question${cal.underconfident === 1 ? "" : "s"} — you knew more than you thought.`
+          : "Your confidence matched your results well — nicely calibrated.";
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
@@ -52,7 +92,32 @@ export default function ResultsScreen({
           {pct}% across {records.length} question
           {records.length === 1 ? "" : "s"}
         </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+          <button
+            onClick={copySummary}
+            className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
+            style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+          >
+            {copied ? "Copied ✓" : "Copy summary"}
+          </button>
+          <button
+            onClick={exportMarkdown}
+            className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
+            style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+          >
+            Export as Markdown
+          </button>
+        </div>
       </section>
+
+      {calMessage && (
+        <div className="mt-5 flex items-center gap-3 rounded-2xl px-5 py-4 tint">
+          <span className="text-xl" aria-hidden="true">
+            🎯
+          </span>
+          <p className="text-[14px] font-medium">{calMessage}</p>
+        </div>
+      )}
 
       <section className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TopicList

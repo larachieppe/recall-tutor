@@ -2,21 +2,23 @@
 
 import { useState } from "react";
 import type {
-  AnswerRecord,
+  Confidence,
   CriterionResult,
   Feedback,
+  PracticeMode,
   Question,
 } from "@/lib/types";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
 import { PillButton } from "@/components/ui";
 import { matchEvidence, evidenceIndices } from "@/lib/highlight";
 import type { TutorTurn } from "@/lib/tutor";
+import type { FlashcardRating, GradeSubmission } from "@/lib/grade-local";
 
 interface Props {
   questions: Question[];
   index: number;
-  records: AnswerRecord[];
-  onSubmit: (answer: string) => Promise<Feedback>;
+  mode: PracticeMode;
+  onSubmit: (submission: GradeSubmission) => Promise<Feedback>;
   onNext: () => void;
   onFinish: () => void;
 }
@@ -24,24 +26,33 @@ interface Props {
 export default function StudyScreen({
   questions,
   index,
+  mode,
   onSubmit,
   onNext,
   onFinish,
 }: Props) {
   const question = questions[index];
   const isLast = index === questions.length - 1;
+  const isMC = question.type === "multiple_choice" && !!question.choices?.length;
 
   const [answer, setAnswer] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
+  const [confidence, setConfidence] = useState<Confidence | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
 
   async function submit() {
+    if (isMC && selected === null) return;
     setGrading(true);
     setError(null);
     try {
-      const fb = await onSubmit(answer);
+      const fb = await onSubmit({
+        answer: isMC ? question.choices![selected!] : answer,
+        selectedIndex: isMC ? (selected ?? undefined) : undefined,
+        confidence: confidence ?? undefined,
+      });
       setFeedback(fb);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Grading failed.");
@@ -50,109 +61,350 @@ export default function StudyScreen({
     }
   }
 
-  function advance() {
+  function reset() {
     setAnswer("");
+    setSelected(null);
+    setConfidence(null);
     setFeedback(null);
     setError(null);
     setShowHint(false);
+  }
+
+  function advance() {
+    reset();
     if (isLast) onFinish();
     else onNext();
   }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
-      {/* progress */}
-      <div className="mb-7">
-        <div
-          className="mb-2.5 flex items-center justify-between text-[13px]"
-          style={{ color: "var(--muted)" }}
-        >
-          <span className="font-semibold">
-            Question {index + 1} of {questions.length}
-          </span>
-          <span
-            className="rounded-full px-3 py-1 font-semibold tint"
-            style={{ color: "var(--blue)" }}
-          >
-            {QUESTION_TYPE_LABELS[question.type]} · {question.topic}
-          </span>
-        </div>
-        <div
-          className="h-1.5 w-full overflow-hidden rounded-full"
-          style={{ background: "var(--line)" }}
-        >
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${((index + (feedback ? 1 : 0)) / questions.length) * 100}%`,
-              background: "var(--blue)",
-            }}
-          />
-        </div>
-      </div>
+      <ProgressHeader
+        index={index}
+        total={questions.length}
+        answered={!!feedback}
+        typeLabel={mode === "flashcard" ? "Flashcard" : QUESTION_TYPE_LABELS[question.type]}
+        topic={question.topic}
+      />
 
-      <div className="panel rounded-2xl p-7">
-        <h2 className="text-[24px] font-extrabold leading-snug tracking-tight md:text-[26px]">
-          {question.question}
-        </h2>
-
-        <textarea
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          disabled={!!feedback || grading}
-          placeholder="Type your answer in your own words…"
-          rows={6}
-          className="mt-6 w-full resize-y rounded-xl border px-4 py-3.5 text-[15px] leading-relaxed outline-none transition focus:border-[var(--blue)] disabled:opacity-70"
-          style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+      {mode === "flashcard" ? (
+        <FlashcardView
+          key={question.id}
+          question={question}
+          onRate={async (rating) => {
+            await onSubmit({ answer: "", rating });
+            advance();
+          }}
+          isLast={isLast}
         />
+      ) : (
+        <>
+          <div className="panel rounded-2xl p-7">
+            <h2 className="text-[24px] font-extrabold leading-snug tracking-tight md:text-[26px]">
+              {question.question}
+            </h2>
 
-        {!feedback && (
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <PillButton onClick={submit} disabled={grading}>
-              {grading ? "Grading…" : "Submit answer"}
-            </PillButton>
-            {question.hint && !showHint && (
-              <button
-                onClick={() => setShowHint(true)}
-                disabled={grading}
-                className="text-[13px] font-semibold disabled:opacity-50"
-                style={{ color: "var(--muted)" }}
+            {isMC ? (
+              <div className="mt-6 space-y-2.5">
+                {question.choices!.map((choice, i) => (
+                  <ChoiceButton
+                    key={i}
+                    label={choice}
+                    index={i}
+                    selected={selected === i}
+                    disabled={!!feedback || grading}
+                    state={
+                      feedback
+                        ? i === question.answer_index
+                          ? "correct"
+                          : selected === i
+                            ? "wrong"
+                            : "idle"
+                        : "idle"
+                    }
+                    onClick={() => setSelected(i)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                disabled={!!feedback || grading}
+                placeholder="Type your answer in your own words…"
+                rows={6}
+                className="mt-6 w-full resize-y rounded-xl border px-4 py-3.5 text-[15px] leading-relaxed outline-none transition focus:border-[var(--blue)] disabled:opacity-70"
+                style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+              />
+            )}
+
+            {!feedback && (
+              <ConfidencePicker value={confidence} onChange={setConfidence} disabled={grading} />
+            )}
+
+            {!feedback && (
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <PillButton onClick={submit} disabled={grading || (isMC && selected === null)}>
+                  {grading ? "Checking…" : isMC ? "Submit choice" : "Submit answer"}
+                </PillButton>
+                {question.hint && !showHint && (
+                  <button
+                    onClick={() => setShowHint(true)}
+                    disabled={grading}
+                    className="text-[13px] font-semibold disabled:opacity-50"
+                    style={{ color: "var(--muted)" }}
+                  >
+                    Stuck? Reveal a hint
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!feedback && showHint && question.hint && (
+              <div
+                className="mt-4 rounded-xl px-4 py-3 text-[14px] leading-relaxed tint"
+                style={{ color: "var(--ink)" }}
               >
-                Stuck? Reveal a hint
-              </button>
+                <span className="font-semibold" style={{ color: "var(--blue)" }}>
+                  Hint:{" "}
+                </span>
+                {question.hint}
+              </div>
+            )}
+
+            {error && (
+              <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
+                {error}
+              </p>
             )}
           </div>
-        )}
 
-        {!feedback && showHint && question.hint && (
+          {feedback && (
+            <FeedbackCard feedback={feedback} question={question} answer={answer} hideCriteria={isMC} />
+          )}
+
+          {feedback && (
+            <div className="mt-6">
+              <PillButton onClick={advance} full>
+                {isLast ? "See results" : "Next question"}
+              </PillButton>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProgressHeader({
+  index,
+  total,
+  answered,
+  typeLabel,
+  topic,
+}: {
+  index: number;
+  total: number;
+  answered: boolean;
+  typeLabel: string;
+  topic: string;
+}) {
+  return (
+    <div className="mb-7">
+      <div
+        className="mb-2.5 flex items-center justify-between text-[13px]"
+        style={{ color: "var(--muted)" }}
+      >
+        <span className="font-semibold">
+          Question {index + 1} of {total}
+        </span>
+        <span
+          className="rounded-full px-3 py-1 font-semibold tint"
+          style={{ color: "var(--blue)" }}
+        >
+          {typeLabel} · {topic}
+        </span>
+      </div>
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full"
+        style={{ background: "var(--line)" }}
+      >
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${((index + (answered ? 1 : 0)) / total) * 100}%`,
+            background: "var(--blue)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ChoiceButton({
+  label,
+  index,
+  selected,
+  disabled,
+  state,
+  onClick,
+}: {
+  label: string;
+  index: number;
+  selected: boolean;
+  disabled: boolean;
+  state: "idle" | "correct" | "wrong";
+  onClick: () => void;
+}) {
+  const letter = String.fromCharCode(65 + index);
+  let border = selected ? "var(--blue)" : "var(--line)";
+  let bg = "var(--panel)";
+  let badgeBg = selected ? "var(--blue)" : "var(--tint)";
+  let badgeFg = selected ? "#fff" : "var(--blue)";
+  if (state === "correct") {
+    border = "var(--mint)";
+    bg = "rgba(23,189,131,0.10)";
+    badgeBg = "var(--mint)";
+    badgeFg = "#fff";
+  } else if (state === "wrong") {
+    border = "var(--danger)";
+    bg = "#f7dfdb";
+    badgeBg = "var(--danger)";
+    badgeFg = "#fff";
+  }
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition disabled:cursor-default"
+      style={{ borderColor: border, background: bg }}
+    >
+      <span
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
+        style={{ background: badgeBg, color: badgeFg }}
+      >
+        {state === "correct" ? "✓" : state === "wrong" ? "✕" : letter}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+const CONFIDENCE_OPTIONS: { value: Confidence; label: string }[] = [
+  { value: "low", label: "Not sure" },
+  { value: "medium", label: "Fairly sure" },
+  { value: "high", label: "Confident" },
+];
+
+function ConfidencePicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: Confidence | null;
+  onChange: (c: Confidence) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      <span className="text-[13px] font-medium" style={{ color: "var(--muted)" }}>
+        How confident are you?
+      </span>
+      {CONFIDENCE_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          disabled={disabled}
+          className="rounded-full border px-3 py-1.5 text-[12px] font-semibold transition disabled:opacity-50"
+          style={{
+            borderColor: value === o.value ? "var(--blue)" : "var(--line)",
+            background: value === o.value ? "var(--blue)" : "transparent",
+            color: value === o.value ? "#fff" : "var(--muted)",
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const RATINGS: { value: FlashcardRating; label: string; color: string }[] = [
+  { value: "again", label: "Again", color: "var(--danger)" },
+  { value: "hard", label: "Hard", color: "var(--amber)" },
+  { value: "good", label: "Good", color: "var(--blue)" },
+  { value: "easy", label: "Easy", color: "var(--mint)" },
+];
+
+function FlashcardView({
+  question,
+  onRate,
+  isLast,
+}: {
+  question: Question;
+  onRate: (rating: FlashcardRating) => Promise<void>;
+  isLast: boolean;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const [rating, setRating] = useState(false);
+
+  async function rate(r: FlashcardRating) {
+    if (rating) return;
+    setRating(true);
+    await onRate(r);
+  }
+
+  return (
+    <div className="panel rounded-2xl p-7">
+      <div className="text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--muted)" }}>
+        Prompt
+      </div>
+      <h2 className="mt-2 text-[24px] font-extrabold leading-snug tracking-tight md:text-[26px]">
+        {question.question}
+      </h2>
+
+      {!revealed ? (
+        <div className="mt-7">
+          <PillButton onClick={() => setRevealed(true)} full>
+            Show answer
+          </PillButton>
+          <p className="mt-3 text-center text-[13px]" style={{ color: "var(--muted)" }}>
+            Try to recall it first, then reveal to check yourself.
+          </p>
+        </div>
+      ) : (
+        <>
           <div
-            className="mt-4 rounded-xl px-4 py-3 text-[14px] leading-relaxed tint"
+            className="mt-6 rounded-xl px-4 py-4 text-[15px] leading-relaxed tint"
             style={{ color: "var(--ink)" }}
           >
-            <span className="font-semibold" style={{ color: "var(--blue)" }}>
-              Hint:{" "}
-            </span>
-            {question.hint}
+            <div className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--blue)" }}>
+              Answer
+            </div>
+            {question.reference_answer}
           </div>
-        )}
 
-        {error && (
-          <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
-            {error}
+          <p className="mt-6 mb-3 text-center text-[13px] font-semibold" style={{ color: "var(--muted)" }}>
+            How well did you recall it?
           </p>
-        )}
-      </div>
-
-      {feedback && (
-        <FeedbackCard feedback={feedback} question={question} answer={answer} />
-      )}
-
-      {feedback && (
-        <div className="mt-6">
-          <PillButton onClick={advance} full>
-            {isLast ? "See results" : "Next question"}
-          </PillButton>
-        </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {RATINGS.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => rate(r.value)}
+                disabled={rating}
+                className="rounded-xl border px-3 py-3 text-[14px] font-bold transition hover:bg-[var(--tint)] disabled:opacity-50"
+                style={{ borderColor: r.color, color: r.color }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          {isLast && (
+            <p className="mt-3 text-center text-[12px]" style={{ color: "var(--muted)" }}>
+              Rating the last card finishes the session.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
@@ -169,31 +421,35 @@ function FeedbackCard({
   feedback,
   question,
   answer,
+  hideCriteria,
 }: {
   feedback: Feedback;
   question: Question;
   answer: string;
+  hideCriteria?: boolean;
 }) {
   const [showSource, setShowSource] = useState(false);
   return (
     <div className="panel mt-6 rounded-2xl p-7">
       <div className="mb-5 flex items-center gap-3">
         <ScoreBadge score={feedback.score} />
-        <div className="flex flex-wrap gap-1.5">
-          {feedback.criteria.map((c, i) => {
-            const col = statusColors(c.status);
-            return (
-              <span
-                key={i}
-                title={`${c.description} — ${c.points_awarded}/${c.points_possible}`}
-                className="rounded-md px-2 py-1 text-[11px] font-bold"
-                style={{ background: col.bg, color: col.fg }}
-              >
-                {c.points_awarded}/{c.points_possible}
-              </span>
-            );
-          })}
-        </div>
+        {!hideCriteria && (
+          <div className="flex flex-wrap gap-1.5">
+            {feedback.criteria.map((c, i) => {
+              const col = statusColors(c.status);
+              return (
+                <span
+                  key={i}
+                  title={`${c.description} — ${c.points_awarded}/${c.points_possible}`}
+                  className="rounded-md px-2 py-1 text-[11px] font-bold"
+                  style={{ background: col.bg, color: col.fg }}
+                >
+                  {c.points_awarded}/{c.points_possible}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Block title="What you got right" body={feedback.correct} />

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
   Difficulty,
   GenerateConfig,
+  PracticeMode,
   QuestionType,
   SourceMeta,
 } from "@/lib/types";
@@ -25,11 +26,13 @@ const ALL_TYPES: QuestionType[] = [
   "short_answer",
   "application",
   "compare_contrast",
+  "multiple_choice",
 ];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
 interface Props {
   onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
+  onTryDemo: () => void;
   onOpenHistory: () => void;
   onOpenProgress: () => void;
   onReviewDue: () => void;
@@ -40,6 +43,7 @@ interface Props {
 
 export default function SetupScreen({
   onReady,
+  onTryDemo,
   onOpenHistory,
   onOpenProgress,
   onReviewDue,
@@ -87,8 +91,13 @@ export default function SetupScreen({
 
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [count, setCount] = useState(5);
-  const [types, setTypes] = useState<QuestionType[]>(ALL_TYPES);
+  const [types, setTypes] = useState<QuestionType[]>([
+    "short_answer",
+    "application",
+    "compare_contrast",
+  ]);
   const [focus, setFocus] = useState("");
+  const [mode, setMode] = useState<PracticeMode>("graded");
 
   async function extract() {
     setExtractError(null);
@@ -128,7 +137,7 @@ export default function SetupScreen({
 
   function start() {
     if (!source || !meta) return;
-    onReady(source, meta, { difficulty, count, types, focus });
+    onReady(source, meta, { difficulty, count, types, focus, mode });
   }
 
   const canExtract = tab === "link" ? url.trim().length > 0 : !!file;
@@ -188,6 +197,19 @@ export default function SetupScreen({
           medium-difficulty questions, answer them, and receive detailed,
           rubric-based feedback.
         </p>
+        <div className="mt-6 flex items-center gap-3">
+          <button
+            onClick={onTryDemo}
+            disabled={busy}
+            className="rounded-full px-5 py-2.5 text-[14px] font-semibold text-white transition disabled:opacity-50"
+            style={{ background: "var(--blue)" }}
+          >
+            ▶ Try a 2-minute demo
+          </button>
+          <span className="text-[13px]" style={{ color: "var(--muted)" }}>
+            No sign-in or setup — runs entirely in your browser.
+          </span>
+        </div>
       </header>
 
       {dueCount > 0 && (
@@ -307,6 +329,24 @@ export default function SetupScreen({
         {/* Config */}
         <section className="panel rounded-2xl p-6">
           <SectionLabel>Settings</SectionLabel>
+          <Field label="Practice mode">
+            <div className="flex gap-2">
+              <Chip active={mode === "graded"} onClick={() => setMode("graded")}>
+                Graded
+              </Chip>
+              <Chip
+                active={mode === "flashcard"}
+                onClick={() => setMode("flashcard")}
+              >
+                Flashcards
+              </Chip>
+            </div>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+              {mode === "flashcard"
+                ? "Flip each card, then rate your own recall — no answer typing."
+                : "Type or select answers and get rubric-based feedback."}
+            </p>
+          </Field>
           <Field label="Difficulty">
             <div className="flex gap-2">
               {DIFFICULTIES.map((d) => (
