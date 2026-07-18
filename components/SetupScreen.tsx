@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Difficulty,
   GenerateConfig,
@@ -12,6 +12,8 @@ import { BrandMark, PillButton } from "@/components/ui";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import AuthButton from "@/components/AuthButton";
 import SignInPrompt from "@/components/SignInPrompt";
+import { loadLibrary } from "@/lib/library";
+import { dueConcepts } from "@/lib/mastery";
 
 const ALL_TYPES: QuestionType[] = [
   "short_answer",
@@ -24,6 +26,7 @@ interface Props {
   onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
   onOpenHistory: () => void;
   onOpenProgress: () => void;
+  onReviewDue: () => void;
   busy: boolean;
   busyLabel: string;
   error: string | null;
@@ -33,10 +36,28 @@ export default function SetupScreen({
   onReady,
   onOpenHistory,
   onOpenProgress,
+  onReviewDue,
   busy,
   busyLabel,
   error,
 }: Props) {
+  const [dueCount, setDueCount] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => {
+      const lib = loadLibrary();
+      const map = lib.mastery ?? {};
+      // Only count due concepts we can actually regenerate (source still exists).
+      setDueCount(
+        dueConcepts(map).filter(
+          (c) => c.sourceItemId && lib.items[c.sourceItemId],
+        ).length,
+      );
+    };
+    refresh();
+    window.addEventListener("recall:lib-remote", refresh);
+    return () => window.removeEventListener("recall:lib-remote", refresh);
+  }, []);
   const [tab, setTab] = useState<"link" | "file">("link");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -140,6 +161,29 @@ export default function SetupScreen({
           rubric-based feedback.
         </p>
       </header>
+
+      {dueCount > 0 && (
+        <div
+          className="mb-8 flex flex-col items-start gap-4 rounded-2xl p-5 tint sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" aria-hidden="true">
+              🔁
+            </span>
+            <div>
+              <p className="text-[15px] font-bold">
+                {dueCount} concept{dueCount === 1 ? "" : "s"} due for review
+              </p>
+              <p className="text-[13px]" style={{ color: "var(--muted)" }}>
+                Spaced repetition keeps them from fading — a quick review now.
+              </p>
+            </div>
+          </div>
+          <PillButton onClick={onReviewDue} disabled={busy}>
+            {busy ? busyLabel : "Review now"}
+          </PillButton>
+        </div>
+      )}
 
       <div className="grid gap-5 md:grid-cols-2 md:items-start">
         {/* Source input */}

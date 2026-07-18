@@ -263,6 +263,7 @@ export default function Home() {
       onReady={handleReady}
       onOpenHistory={() => dispatch({ type: "NAV", phase: "library" })}
       onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
+      onReviewDue={reviewDue}
       busy={state.busy}
       busyLabel={state.busyLabel}
       error={state.error}
