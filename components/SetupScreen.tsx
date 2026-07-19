@@ -232,10 +232,11 @@ export default function SetupScreen({
               <button
                 onClick={onOpenProgress}
                 title={`${streakDays}-day review streak`}
+                aria-label={`${streakDays}-day review streak — open progress`}
                 className="rounded-full px-3 py-2 text-[13px] font-bold tint"
                 style={{ color: "var(--blue)" }}
               >
-                🔥 {streakDays}
+                <span aria-hidden="true">🔥 {streakDays}</span>
               </button>
             )}
             <button

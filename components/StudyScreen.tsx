@@ -42,6 +42,12 @@ export default function StudyScreen({
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Move focus to the new question so screen-reader / keyboard users land on it.
+  useEffect(() => {
+    if (mode !== "flashcard") headingRef.current?.focus();
+  }, [index, mode]);
 
   async function submit() {
     if (isMC && selected === null) return;
@@ -180,12 +186,20 @@ export default function StudyScreen({
       ) : (
         <>
           <div className="panel rounded-2xl p-7">
-            <h2 className="text-[24px] font-extrabold leading-snug tracking-tight md:text-[26px]">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-[24px] font-extrabold leading-snug tracking-tight outline-none md:text-[26px]"
+            >
               {question.question}
             </h2>
 
             {isMC ? (
-              <div className="mt-6 space-y-2.5">
+              <div
+                className="mt-6 space-y-2.5"
+                role="radiogroup"
+                aria-label="Answer choices"
+              >
                 {question.choices!.map((choice, i) => (
                   <ChoiceButton
                     key={i}
@@ -268,7 +282,11 @@ export default function StudyScreen({
             )}
 
             {error && (
-              <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
+              <p
+                role="alert"
+                className="mt-4 text-[14px]"
+                style={{ color: "var(--danger)" }}
+              >
                 {error}
               </p>
             )}
@@ -392,10 +410,16 @@ function ChoiceButton({
     <button
       onClick={onClick}
       disabled={disabled}
+      role="radio"
+      aria-checked={selected}
+      aria-label={`Option ${letter}: ${label}${
+        state === "correct" ? " (correct answer)" : state === "wrong" ? " (your answer, incorrect)" : ""
+      }`}
       className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition disabled:cursor-default"
       style={{ borderColor: border, background: bg }}
     >
       <span
+        aria-hidden="true"
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
         style={{ background: badgeBg, color: badgeFg }}
       >
@@ -463,6 +487,11 @@ function FlashcardView({
 }) {
   const [revealed, setRevealed] = useState(false);
   const [rating, setRating] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   async function rate(r: FlashcardRating) {
     if (rating) return;
@@ -499,7 +528,11 @@ function FlashcardView({
       <div className="text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--muted)" }}>
         Prompt
       </div>
-      <h2 className="mt-2 text-[24px] font-extrabold leading-snug tracking-tight md:text-[26px]">
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        className="mt-2 text-[24px] font-extrabold leading-snug tracking-tight outline-none md:text-[26px]"
+      >
         {question.question}
       </h2>
 
@@ -520,6 +553,8 @@ function FlashcardView({
           <div
             className="mt-6 rounded-xl px-4 py-4 text-[15px] leading-relaxed tint"
             style={{ color: "var(--ink)" }}
+            role="status"
+            aria-live="polite"
           >
             <div className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--blue)" }}>
               Answer
@@ -577,7 +612,10 @@ function FeedbackCard({
 }) {
   const [showSource, setShowSource] = useState(false);
   return (
-    <div className="panel mt-6 rounded-2xl p-7">
+    <div className="panel mt-6 rounded-2xl p-7" role="status" aria-live="polite">
+      <p className="sr-only">
+        Scored {feedback.score} out of 10. {feedback.correct}
+      </p>
       <div className="mb-5 flex items-center gap-3">
         <ScoreBadge score={feedback.score} />
         {!hideCriteria && (
@@ -855,6 +893,7 @@ function ScoreBadge({ score }: { score: number }) {
       : "#f7dfdb";
   return (
     <div
+      aria-hidden="true"
       className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full text-[17px] font-extrabold"
       style={{ background: bg, color: fg }}
     >
