@@ -76,6 +76,30 @@ export function sessionToSummary(records: AnswerRecord[], meta: ExportMeta): str
   return parts.join("\n");
 }
 
+/** One Anki field: strip tabs, turn newlines into <br> (Anki renders HTML). */
+function ankiField(s: string): string {
+  return (s || "")
+    .replace(/\t/g, " ")
+    .replace(/\r?\n/g, "<br>")
+    .trim();
+}
+
+/**
+ * A tab-separated deck importable by Anki (and most SRS apps): question on the
+ * front, reference answer on the back, topic as a tag. The header directives
+ * tell Anki the separator, that fields contain HTML, and which column is tags.
+ */
+export function sessionToAnki(records: AnswerRecord[]): string {
+  const lines = ["#separator:tab", "#html:true", "#tags column:3"];
+  for (const r of records) {
+    const front = ankiField(r.question.question);
+    const back = ankiField(r.question.reference_answer);
+    const tag = (r.question.topic || "").trim().replace(/\s+/g, "_");
+    lines.push(`${front}\t${back}\t${tag}`);
+  }
+  return lines.join("\n");
+}
+
 /** Trigger a browser download of `content` as a file. No-op on the server. */
 export function downloadFile(filename: string, content: string, mime = "text/markdown"): void {
   if (typeof window === "undefined") return;

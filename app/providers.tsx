@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import CloudSync from "@/components/CloudSync";
 import NotifyManager from "@/components/NotifyManager";
+import ServiceWorkerManager from "@/components/ServiceWorkerManager";
 
 export default function Providers({
   children,
@@ -13,6 +14,7 @@ export default function Providers({
   if (!AUTH_ENABLED) {
     return (
       <>
+        <ServiceWorkerManager />
         <NotifyManager />
         {children}
       </>
@@ -21,6 +23,7 @@ export default function Providers({
   return (
     <SessionProvider>
       <CloudSync />
+      <ServiceWorkerManager />
       <NotifyManager />
       {children}
     </SessionProvider>

@@ -2,6 +2,10 @@
  * can arrive even when the app tab is closed. Kept intentionally minimal (no
  * offline caching) to avoid surprising staleness. */
 
+// A no-op fetch handler (network passthrough) — present so the app qualifies
+// as installable, without introducing any offline caching / staleness.
+self.addEventListener("fetch", () => {});
+
 self.addEventListener("push", (event) => {
   let data = { title: "Recall", body: "You have reviews due.", url: "/" };
   try {
@@ -12,8 +16,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icon.png",
-      badge: "/icon.png",
+      icon: "/icon.svg",
+      badge: "/icon.svg",
       data: { url: data.url || "/" },
       tag: "recall-due",
       renotify: true,

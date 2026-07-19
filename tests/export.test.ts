@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   sessionToMarkdown,
   sessionToSummary,
+  sessionToAnki,
   slugify,
 } from "../lib/export";
 import type { AnswerRecord } from "../lib/types";
@@ -51,6 +52,28 @@ describe("sessionToSummary", () => {
     expect(s).toContain("✅ Strong: Strong");
     expect(s).toContain("📖 To review: Weak");
     expect(s).toContain("(60%)");
+  });
+});
+
+describe("sessionToAnki", () => {
+  it("emits Anki header directives and tab-separated front/back/tag rows", () => {
+    const out = sessionToAnki([rec("Cell Biology", 8)]);
+    const lines = out.split("\n");
+    expect(lines[0]).toBe("#separator:tab");
+    expect(lines).toContain("#html:true");
+    expect(lines).toContain("#tags column:3");
+    const row = lines[lines.length - 1].split("\t");
+    expect(row).toHaveLength(3);
+    expect(row[0]).toBe("Explain Cell Biology?"); // front = question
+    expect(row[1]).toBe("ref"); // back = reference answer
+    expect(row[2]).toBe("Cell_Biology"); // tag has no spaces
+  });
+
+  it("escapes tabs and newlines in fields", () => {
+    const r = rec("T", 5);
+    r.question.question = "Line1\nLine2\twith tab";
+    const row = sessionToAnki([r]).split("\n").pop()!.split("\t");
+    expect(row[0]).toBe("Line1<br>Line2 with tab");
   });
 });
 

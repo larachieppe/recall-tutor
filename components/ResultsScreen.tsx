@@ -9,6 +9,7 @@ import SignInPrompt from "@/components/SignInPrompt";
 import {
   sessionToMarkdown,
   sessionToSummary,
+  sessionToAnki,
   downloadFile,
   slugify,
 } from "@/lib/export";
@@ -43,6 +44,14 @@ export default function ResultsScreen({
     downloadFile(
       `${slugify(title)}-recall.md`,
       sessionToMarkdown(records, { title }),
+    );
+  }
+
+  function exportAnki() {
+    downloadFile(
+      `${slugify(title)}-flashcards.txt`,
+      sessionToAnki(records),
+      "text/tab-separated-values",
     );
   }
 
@@ -106,6 +115,13 @@ export default function ResultsScreen({
             style={{ borderColor: "var(--line)", color: "var(--blue)" }}
           >
             Export as Markdown
+          </button>
+          <button
+            onClick={exportAnki}
+            className="rounded-full border px-4 py-2 text-[13px] font-semibold transition hover:bg-[var(--tint)]"
+            style={{ borderColor: "var(--line)", color: "var(--blue)" }}
+          >
+            Export to Anki
           </button>
         </div>
       </section>

@@ -85,8 +85,9 @@ export default function SetupScreen({
     // arrive when the app is closed (signed-in users get personalized ones).
     if (pushConfiguredClient()) await enablePush();
   }
-  const [tab, setTab] = useState<"link" | "file">("link");
+  const [tab, setTab] = useState<"link" | "file" | "text">("link");
   const [url, setUrl] = useState("");
+  const [pasteText, setPasteText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<string>("");
   const [meta, setMeta] = useState<SourceMeta | null>(null);
@@ -110,6 +111,22 @@ export default function SetupScreen({
     setSource("");
     setMeta(null);
     try {
+      // Pasted text needs no extraction — use it directly, no network call.
+      if (tab === "text") {
+        const text = pasteText.trim();
+        if (text.length < 120) {
+          throw new Error(
+            "Paste a bit more text (at least ~120 characters) to generate good questions.",
+          );
+        }
+        const firstLine = text.split("\n").find((l) => l.trim())?.trim() ?? "";
+        const title =
+          firstLine.length > 0 ? firstLine.slice(0, 80) : "Pasted notes";
+        setSource(text);
+        setMeta({ title, length: text.length });
+        return;
+      }
+
       let res: Response;
       if (tab === "link") {
         res = await fetch("/api/extract", {
@@ -145,7 +162,12 @@ export default function SetupScreen({
     onReady(source, meta, { difficulty, count, types, focus, mode });
   }
 
-  const canExtract = tab === "link" ? url.trim().length > 0 : !!file;
+  const canExtract =
+    tab === "link"
+      ? url.trim().length > 0
+      : tab === "text"
+        ? pasteText.trim().length > 0
+        : !!file;
   const MEDIA_RE =
     /\.(mp3|m4a|wav|aac|ogg|oga|opus|flac|wma|mp4|mov|webm|mkv|avi|m4v|mpeg|mpg|3gp)(\?|#|$)/i;
   const inputIsMedia =
@@ -267,6 +289,9 @@ export default function SetupScreen({
             <TabButton active={tab === "link"} onClick={() => setTab("link")}>
               Paste a link
             </TabButton>
+            <TabButton active={tab === "text"} onClick={() => setTab("text")}>
+              Paste text
+            </TabButton>
             <TabButton active={tab === "file"} onClick={() => setTab("file")}>
               Upload a file
             </TabButton>
@@ -279,6 +304,15 @@ export default function SetupScreen({
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://en.wikipedia.org/wiki/Gradient_descent"
               className="w-full rounded-xl border px-4 py-3 text-[15px] outline-none transition focus:border-[var(--blue)]"
+              style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+            />
+          ) : tab === "text" ? (
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Paste your notes, an article, or any text to study from…"
+              rows={6}
+              className="w-full resize-y rounded-xl border px-4 py-3 text-[15px] leading-relaxed outline-none transition focus:border-[var(--blue)]"
               style={{ borderColor: "var(--line)", background: "var(--panel)" }}
             />
           ) : (
