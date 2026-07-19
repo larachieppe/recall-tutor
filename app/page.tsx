@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import SetupScreen from "@/components/SetupScreen";
 import OverviewScreen from "@/components/OverviewScreen";
 import StudyScreen from "@/components/StudyScreen";
@@ -32,9 +32,80 @@ import {
   DEMO_QUESTIONS,
   DEMO_SOURCE,
 } from "@/lib/demo";
+import {
+  clearProgress,
+  loadProgress,
+  saveProgress,
+  type InProgress,
+} from "@/lib/progress-store";
 
 export default function Home() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [resumable, setResumable] = useState<InProgress | null>(null);
+
+  // On first load, surface a saved in-progress session (if any) for resuming.
+  useEffect(() => {
+    setResumable(loadProgress());
+  }, []);
+
+  // Autosave the active study session so a reload/close can resume it. The
+  // snapshot's index is the next unanswered question (records.length).
+  useEffect(() => {
+    if (
+      (state.phase === "study" || state.phase === "overview") &&
+      state.questions.length &&
+      state.meta &&
+      state.config
+    ) {
+      if (state.records.length < state.questions.length) {
+        saveProgress({
+          phase: state.phase,
+          questions: state.questions,
+          index: state.records.length,
+          records: state.records,
+          config: state.config,
+          source: state.source,
+          meta: state.meta,
+          currentItemId: state.currentItemId,
+          overview: state.overview,
+        });
+      } else {
+        clearProgress();
+      }
+    }
+  }, [
+    state.phase,
+    state.records,
+    state.questions,
+    state.meta,
+    state.config,
+    state.source,
+    state.currentItemId,
+    state.overview,
+  ]);
+
+  function resume() {
+    const p = resumable;
+    if (!p) return;
+    dispatch({
+      type: "RESUME",
+      phase: p.phase,
+      source: p.source,
+      meta: p.meta,
+      config: p.config,
+      questions: p.questions,
+      index: p.index,
+      records: p.records,
+      overview: p.overview,
+      itemId: p.currentItemId,
+    });
+    setResumable(null);
+  }
+
+  function discardResume() {
+    clearProgress();
+    setResumable(null);
+  }
 
   /** Async generation: questions (+ optional study notes) → drive the machine. */
   async function runGeneration(
@@ -244,6 +315,7 @@ export default function Home() {
         saveLibrary(setItemScore(loadLibrary(), state.currentItemId, pct));
       }
     }
+    clearProgress();
     dispatch({ type: "FINISH" });
   }
 
@@ -318,6 +390,17 @@ export default function Home() {
       onOpenHistory={() => dispatch({ type: "NAV", phase: "library" })}
       onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
       onReviewDue={reviewDue}
+      resume={
+        resumable
+          ? {
+              title: resumable.meta.title,
+              index: resumable.index,
+              total: resumable.questions.length,
+              onResume: resume,
+              onDiscard: discardResume,
+            }
+          : null
+      }
       busy={state.busy}
       busyLabel={state.busyLabel}
       error={state.error}

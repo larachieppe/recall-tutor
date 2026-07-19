@@ -31,12 +31,21 @@ const ALL_TYPES: QuestionType[] = [
 ];
 const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
 
+interface ResumeInfo {
+  title: string;
+  index: number;
+  total: number;
+  onResume: () => void;
+  onDiscard: () => void;
+}
+
 interface Props {
   onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
   onTryDemo: () => void;
   onOpenHistory: () => void;
   onOpenProgress: () => void;
   onReviewDue: () => void;
+  resume: ResumeInfo | null;
   busy: boolean;
   busyLabel: string;
   error: string | null;
@@ -48,6 +57,7 @@ export default function SetupScreen({
   onOpenHistory,
   onOpenProgress,
   onReviewDue,
+  resume,
   busy,
   busyLabel,
   error,
@@ -238,6 +248,34 @@ export default function SetupScreen({
           </span>
         </div>
       </header>
+
+      {resume && (
+        <div className="mb-8 flex flex-col items-start gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between"
+          style={{ borderColor: "var(--blue)", background: "var(--tint)" }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" aria-hidden="true">
+              ⏳
+            </span>
+            <div>
+              <p className="text-[15px] font-bold">Resume your session?</p>
+              <p className="text-[13px]" style={{ color: "var(--muted)" }}>
+                “{resume.title}” — {resume.index} of {resume.total} answered.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              onClick={resume.onDiscard}
+              className="text-[13px] font-semibold"
+              style={{ color: "var(--muted)" }}
+            >
+              Discard
+            </button>
+            <PillButton onClick={resume.onResume}>Resume</PillButton>
+          </div>
+        </div>
+      )}
 
       {dueCount > 0 && (
         <div

@@ -52,7 +52,19 @@ export type Action =
   | { type: "NEXT" }
   | { type: "TO_STUDY" }
   | { type: "FINISH" }
-  | { type: "RESTART" };
+  | { type: "RESTART" }
+  | {
+      type: "RESUME";
+      phase: "overview" | "study";
+      source: string;
+      meta: SourceMeta;
+      config: GenerateConfig;
+      questions: Question[];
+      index: number;
+      records: AnswerRecord[];
+      overview: Overview | null;
+      itemId: string | null;
+    };
 
 export const initialState: State = {
   phase: "setup",
@@ -106,6 +118,21 @@ export function reducer(state: State, action: Action): State {
       return { ...state, phase: "results" };
     case "RESTART":
       return { ...initialState };
+    case "RESUME":
+      return {
+        ...state,
+        phase: action.phase,
+        source: action.source,
+        meta: action.meta,
+        config: action.config,
+        questions: action.questions,
+        index: action.index,
+        records: action.records,
+        overview: action.overview,
+        currentItemId: action.itemId,
+        busy: false,
+        error: null,
+      };
     default:
       return state;
   }
