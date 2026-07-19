@@ -5,10 +5,12 @@ import type {
   Difficulty,
   GenerateConfig,
   PracticeMode,
+  Question,
   QuestionType,
   SourceMeta,
 } from "@/lib/types";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
+import { parseDeck } from "@/lib/deck-import";
 import { BrandMark, PillButton } from "@/components/ui";
 import { AUTH_ENABLED } from "@/lib/auth-flag";
 import AuthButton from "@/components/AuthButton";
@@ -42,6 +44,7 @@ interface ResumeInfo {
 interface Props {
   onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
   onTryDemo: () => void;
+  onImportDeck: (questions: Question[], title: string) => void;
   onOpenHistory: () => void;
   onOpenProgress: () => void;
   onReviewDue: () => void;
@@ -54,6 +57,7 @@ interface Props {
 export default function SetupScreen({
   onReady,
   onTryDemo,
+  onImportDeck,
   onOpenHistory,
   onOpenProgress,
   onReviewDue,
@@ -95,10 +99,13 @@ export default function SetupScreen({
     // arrive when the app is closed (signed-in users get personalized ones).
     if (pushConfiguredClient()) await enablePush();
   }
-  const [tab, setTab] = useState<"link" | "file" | "text">("link");
+  const [tab, setTab] = useState<"link" | "file" | "text" | "deck">("link");
   const [url, setUrl] = useState("");
   const [pasteText, setPasteText] = useState("");
+  const [deckText, setDeckText] = useState("");
+  const [deckError, setDeckError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const deckFileInput = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState<string>("");
   const [meta, setMeta] = useState<SourceMeta | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
@@ -170,6 +177,31 @@ export default function SetupScreen({
   function start() {
     if (!source || !meta) return;
     onReady(source, meta, { difficulty, count, types, focus, mode });
+  }
+
+  function studyDeck() {
+    setDeckError(null);
+    const { questions, skipped } = parseDeck(deckText);
+    if (questions.length === 0) {
+      setDeckError(
+        "No cards found. Use two columns per line — front and back — separated by a tab or comma.",
+      );
+      return;
+    }
+    const title = `Imported deck (${questions.length} card${questions.length === 1 ? "" : "s"}${
+      skipped ? `, ${skipped} skipped` : ""
+    })`;
+    onImportDeck(questions, title);
+  }
+
+  async function loadDeckFile(f: File) {
+    try {
+      const text = await f.text();
+      setDeckText(text);
+      setDeckError(null);
+    } catch {
+      setDeckError("Could not read that file.");
+    }
   }
 
   const canExtract =
@@ -333,6 +365,9 @@ export default function SetupScreen({
             <TabButton active={tab === "file"} onClick={() => setTab("file")}>
               Upload a file
             </TabButton>
+            <TabButton active={tab === "deck"} onClick={() => setTab("deck")}>
+              Import deck
+            </TabButton>
           </div>
 
           {tab === "link" ? (
@@ -353,6 +388,40 @@ export default function SetupScreen({
               className="w-full resize-y rounded-xl border px-4 py-3 text-[15px] leading-relaxed outline-none transition focus:border-[var(--blue)]"
               style={{ borderColor: "var(--line)", background: "var(--panel)" }}
             />
+          ) : tab === "deck" ? (
+            <div>
+              <textarea
+                value={deckText}
+                onChange={(e) => setDeckText(e.target.value)}
+                placeholder={
+                  "Paste a flashcard deck — one card per line:\n\nWhat is spaced repetition?\tReviewing at increasing intervals.\nWhat is active recall?\tRetrieving from memory, not rereading."
+                }
+                rows={6}
+                className="w-full resize-y rounded-xl border px-4 py-3 font-mono text-[13px] leading-relaxed outline-none transition focus:border-[var(--blue)]"
+                style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+              />
+              <input
+                ref={deckFileInput}
+                type="file"
+                accept=".csv,.tsv,.txt,.tab,.ts-v,text/csv,text/tab-separated-values"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) loadDeckFile(f);
+                }}
+                className="hidden"
+              />
+              <button
+                onClick={() => deckFileInput.current?.click()}
+                className="mt-2 text-[13px] font-semibold"
+                style={{ color: "var(--blue)" }}
+              >
+                or upload a .csv / .tsv file
+              </button>
+              <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                Two columns per line (front, back) plus an optional tag. Works
+                with Anki “Notes in Plain Text” exports. Studied as flashcards.
+              </p>
+            </div>
           ) : (
             <div>
               <input
@@ -375,21 +444,32 @@ export default function SetupScreen({
           )}
 
           <div className="mt-4">
-            <PillButton
-              onClick={extract}
-              disabled={!canExtract || extracting}
-              variant="light"
-            >
-              {extracting ? readingLabel : "Read source"}
-            </PillButton>
+            {tab === "deck" ? (
+              <PillButton onClick={studyDeck} disabled={!deckText.trim() || busy}>
+                {busy ? busyLabel : "Study deck →"}
+              </PillButton>
+            ) : (
+              <PillButton
+                onClick={extract}
+                disabled={!canExtract || extracting}
+                variant="light"
+              >
+                {extracting ? readingLabel : "Read source"}
+              </PillButton>
+            )}
           </div>
 
-          {extractError && (
+          {tab === "deck" && deckError && (
+            <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
+              {deckError}
+            </p>
+          )}
+          {tab !== "deck" && extractError && (
             <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
               {extractError}
             </p>
           )}
-          {meta && (
+          {tab !== "deck" && meta && (
             <div
               className="mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-[14px] tint"
               style={{ color: "var(--blue)" }}

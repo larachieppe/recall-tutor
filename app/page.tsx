@@ -7,7 +7,12 @@ import StudyScreen from "@/components/StudyScreen";
 import ResultsScreen from "@/components/ResultsScreen";
 import LibraryScreen from "@/components/LibraryScreen";
 import ProgressScreen from "@/components/ProgressScreen";
-import type { Feedback, GenerateConfig, SourceMeta } from "@/lib/types";
+import type {
+  Feedback,
+  GenerateConfig,
+  Question,
+  SourceMeta,
+} from "@/lib/types";
 import { reducer, initialState } from "@/lib/study-machine";
 import { saveSession } from "@/lib/session";
 import {
@@ -168,6 +173,30 @@ export default function Home() {
 
   function handleReady(src: string, m: SourceMeta, cfg: GenerateConfig) {
     startStudy(src, m, cfg);
+  }
+
+  /** Study an imported flashcard deck directly — no generation, no key. */
+  function startDeck(questions: Question[], title: string) {
+    const cfg: GenerateConfig = {
+      difficulty: "medium",
+      count: questions.length,
+      types: ["short_answer"],
+      focus: "",
+      mode: "flashcard",
+    };
+    const length = questions.reduce(
+      (n, q) => n + q.reference_answer.length,
+      0,
+    );
+    dispatch({
+      type: "GENERATE_START",
+      source: "",
+      meta: { title, length },
+      config: cfg,
+      itemId: null,
+      label: "Loading deck…",
+    });
+    dispatch({ type: "GENERATE_DONE", questions, overview: null });
   }
 
   /** Load the pre-baked demo — no API key, no network. Grades locally. */
@@ -387,6 +416,7 @@ export default function Home() {
     <SetupScreen
       onReady={handleReady}
       onTryDemo={startDemo}
+      onImportDeck={startDeck}
       onOpenHistory={() => dispatch({ type: "NAV", phase: "library" })}
       onOpenProgress={() => dispatch({ type: "NAV", phase: "progress" })}
       onReviewDue={reviewDue}
