@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   Confidence,
   CriterionResult,
@@ -75,6 +75,87 @@ export default function StudyScreen({
     if (isLast) onFinish();
     else onNext();
   }
+
+  // Keyboard-driven study. A ref holds the latest state so the listener can be
+  // registered once yet always act on current values (avoids stale closures).
+  const kb = useRef({
+    mode,
+    isMC,
+    feedback,
+    grading,
+    selected,
+    showHint,
+    hint: question.hint,
+    choiceCount: question.choices?.length ?? 0,
+    submit,
+    advance,
+    setSelected,
+    setShowHint,
+  });
+  kb.current = {
+    mode,
+    isMC,
+    feedback,
+    grading,
+    selected,
+    showHint,
+    hint: question.hint,
+    choiceCount: question.choices?.length ?? 0,
+    submit,
+    advance,
+    setSelected,
+    setShowHint,
+  };
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const s = kb.current;
+      if (s.mode === "flashcard") return; // FlashcardView handles its own keys
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT");
+
+      // After grading: Enter moves on (but not while typing in the tutor box).
+      if (s.feedback) {
+        if (e.key === "Enter" && !typing) {
+          e.preventDefault();
+          s.advance();
+        }
+        return;
+      }
+      if (s.grading) return;
+
+      if (s.isMC) {
+        const n = Number(e.key);
+        if (Number.isInteger(n) && n >= 1 && n <= s.choiceCount) {
+          e.preventDefault();
+          s.setSelected(n - 1);
+          return;
+        }
+        const letter = e.key.length === 1 ? e.key.toLowerCase().charCodeAt(0) - 97 : -1;
+        if (letter >= 0 && letter < s.choiceCount) {
+          e.preventDefault();
+          s.setSelected(letter);
+          return;
+        }
+        if (e.key === "Enter" && s.selected !== null) {
+          e.preventDefault();
+          s.submit();
+          return;
+        }
+      } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        s.submit();
+        return;
+      }
+
+      if (e.key.toLowerCase() === "h" && !typing && s.hint && !s.showHint) {
+        s.setShowHint(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
@@ -153,9 +234,24 @@ export default function StudyScreen({
                     className="text-[13px] font-semibold disabled:opacity-50"
                     style={{ color: "var(--muted)" }}
                   >
-                    Stuck? Reveal a hint
+                    Stuck? Reveal a hint <Kbd>H</Kbd>
                   </button>
                 )}
+                <span
+                  className="ml-auto hidden text-[12px] sm:inline"
+                  style={{ color: "var(--muted)" }}
+                >
+                  {isMC ? (
+                    <>
+                      <Kbd>1</Kbd>–<Kbd>{question.choices!.length}</Kbd> to choose ·{" "}
+                      <Kbd>Enter</Kbd> to submit
+                    </>
+                  ) : (
+                    <>
+                      <Kbd>⌘</Kbd>/<Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> to submit
+                    </>
+                  )}
+                </span>
               </div>
             )}
 
@@ -187,11 +283,32 @@ export default function StudyScreen({
               <PillButton onClick={advance} full>
                 {isLast ? "See results" : "Next question"}
               </PillButton>
+              <p
+                className="mt-2 hidden text-center text-[12px] sm:block"
+                style={{ color: "var(--muted)" }}
+              >
+                Press <Kbd>Enter</Kbd> to continue
+              </p>
             </div>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd
+      className="mx-0.5 inline-block rounded border px-1.5 py-0.5 text-[11px] font-semibold leading-none"
+      style={{
+        borderColor: "var(--line)",
+        background: "var(--tint)",
+        color: "var(--blue)",
+      }}
+    >
+      {children}
+    </kbd>
   );
 }
 
@@ -353,6 +470,30 @@ function FlashcardView({
     await onRate(r);
   }
 
+  const kb = useRef({ revealed, rating, setRevealed, rate });
+  kb.current = { revealed, rating, setRevealed, rate };
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const s = kb.current;
+      if (s.rating) return;
+      if (!s.revealed) {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          s.setRevealed(true);
+        }
+        return;
+      }
+      const n = Number(e.key);
+      if (Number.isInteger(n) && n >= 1 && n <= RATINGS.length) {
+        e.preventDefault();
+        s.rate(RATINGS[n - 1].value);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="panel rounded-2xl p-7">
       <div className="text-[12px] font-bold uppercase tracking-[0.1em]" style={{ color: "var(--muted)" }}>
@@ -368,7 +509,10 @@ function FlashcardView({
             Show answer
           </PillButton>
           <p className="mt-3 text-center text-[13px]" style={{ color: "var(--muted)" }}>
-            Try to recall it first, then reveal to check yourself.
+            Try to recall it first, then reveal to check yourself.{" "}
+            <span className="hidden sm:inline">
+              (<Kbd>Space</Kbd>)
+            </span>
           </p>
         </div>
       ) : (
@@ -387,7 +531,7 @@ function FlashcardView({
             How well did you recall it?
           </p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            {RATINGS.map((r) => (
+            {RATINGS.map((r, i) => (
               <button
                 key={r.value}
                 onClick={() => rate(r.value)}
@@ -396,6 +540,9 @@ function FlashcardView({
                 style={{ borderColor: r.color, color: r.color }}
               >
                 {r.label}
+                <span className="ml-1.5 hidden text-[11px] opacity-60 sm:inline">
+                  {i + 1}
+                </span>
               </button>
             ))}
           </div>
