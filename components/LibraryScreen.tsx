@@ -38,6 +38,7 @@ export default function LibraryScreen({
   error,
 }: Props) {
   const [library, setLibrary] = useState<Library>({ items: {}, groups: [] });
+  const [query, setQuery] = useState("");
 
   // drag state
   const [dragItemId, setDragItemId] = useState<string | null>(null);
@@ -67,6 +68,15 @@ export default function LibraryScreen({
     () => library.groups.reduce((n, g) => n + g.itemIds.length, 0),
     [library],
   );
+
+  const q = query.trim().toLowerCase();
+  const matches = useMemo(() => {
+    if (!q) return [];
+    return library.groups
+      .flatMap((g) => g.itemIds)
+      .map((id) => library.items[id])
+      .filter((it) => it && it.title.toLowerCase().includes(q));
+  }, [q, library]);
 
   function clearDrag() {
     setDragItemId(null);
@@ -118,6 +128,25 @@ export default function LibraryScreen({
         </button>
       </div>
 
+      {total > 0 && (
+        <div className="relative mb-6">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search your sources…"
+            aria-label="Search sources by title"
+            className="w-full rounded-full border px-5 py-2.5 text-[14px] outline-none transition focus:border-[var(--blue)]"
+            style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+          />
+          {q && (
+            <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
+              {matches.length} match{matches.length === 1 ? "" : "es"} for “{query.trim()}”
+            </p>
+          )}
+        </div>
+      )}
+
       {total === 0 && library.groups.every((g) => g.itemIds.length === 0) && (
         <div
           className="panel rounded-2xl p-8 text-center text-[15px]"
@@ -145,7 +174,35 @@ export default function LibraryScreen({
         </div>
       )}
 
-      <div className="space-y-4">
+      {q && (
+        <div className="space-y-2">
+          {matches.length === 0 ? (
+            <div
+              className="panel rounded-2xl p-8 text-center text-[15px]"
+              style={{ color: "var(--muted)" }}
+            >
+              No sources match “{query.trim()}”.
+            </div>
+          ) : (
+            matches.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                dimmed={false}
+                hideGrip
+                onDragStartHandle={() => {}}
+                onDragOver={() => {}}
+                onDrop={() => {}}
+                onDragEnd={() => {}}
+                onOpen={() => onOpenItem(item)}
+                onDelete={() => apply(deleteItem(library, item.id))}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      <div className="space-y-4" hidden={!!q}>
         {library.groups.map((group) => (
           <section
             key={group.id}
@@ -380,6 +437,7 @@ function GroupHeader({
 function ItemRow({
   item,
   dimmed,
+  hideGrip,
   onDragStartHandle,
   onDragOver,
   onDrop,
@@ -389,6 +447,7 @@ function ItemRow({
 }: {
   item: HistoryItem;
   dimmed: boolean;
+  hideGrip?: boolean;
   onDragStartHandle: () => void;
   onDragOver: (e: React.DragEvent, half: "top" | "bottom") => void;
   onDrop: (e: React.DragEvent) => void;
@@ -413,25 +472,27 @@ function ItemRow({
         background: "var(--panel)",
         opacity: dimmed ? 0.4 : 1,
       }}
-      onDragOver={(e) => onDragOver(e, halfOf(e))}
-      onDrop={onDrop}
+      onDragOver={(e) => !hideGrip && onDragOver(e, halfOf(e))}
+      onDrop={hideGrip ? undefined : onDrop}
     >
-      <span
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", "item");
-          if (rowRef.current)
-            e.dataTransfer.setDragImage(rowRef.current, 20, 20);
-          onDragStartHandle();
-        }}
-        onDragEnd={onDragEnd}
-        className="flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
-        style={{ color: "var(--muted)" }}
-        title="Drag to reorder or move to another group"
-      >
-        <Grip />
-      </span>
+      {!hideGrip && (
+        <span
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", "item");
+            if (rowRef.current)
+              e.dataTransfer.setDragImage(rowRef.current, 20, 20);
+            onDragStartHandle();
+          }}
+          onDragEnd={onDragEnd}
+          className="flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
+          style={{ color: "var(--muted)" }}
+          title="Drag to reorder or move to another group"
+        >
+          <Grip />
+        </span>
+      )}
 
       <button
         onClick={onOpen}
