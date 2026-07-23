@@ -1,8 +1,11 @@
 import {
   anthropic,
+  CACHE_TTL,
+  logUsage,
   MODEL,
   parseJsonFromMessage,
 } from "./anthropic";
+import { cachedSourcePrompt } from "./prompt";
 import type {
   Feedback,
   GenerateConfig,
@@ -16,8 +19,13 @@ import { assembleSource } from "./chunk";
 import { verifyQuestions } from "./verify";
 import { randomUUID } from "crypto";
 
-/** Keep prompts well under the context window; MVP-sized docs fit directly. */
-export const MAX_SOURCE_CHARS = 60_000;
+/**
+ * How much source text to send. This is the dominant input cost — it's sent on
+ * every generation — and `assembleSource` already samples across the WHOLE
+ * document, so a smaller budget still covers the full text rather than
+ * truncating to the beginning. Override with MAX_SOURCE_CHARS.
+ */
+export const MAX_SOURCE_CHARS = Number(process.env.MAX_SOURCE_CHARS) || 30_000;
 
 // --- Question generation -------------------------------------------------
 
@@ -147,16 +155,13 @@ export async function generateQuestions(
   // from without dropping below the requested count.
   const ask = Math.min(config.count + 1, 15);
 
-  const userPrompt = `${difficultyGuidance(config)}
+  // Instructions go AFTER the cached source: difficulty/count/focus change on
+  // every regenerate, and anything before the breakpoint would invalidate it.
+  const instructions = `${difficultyGuidance(config)}
 
-Generate exactly ${ask} question(s). Distribute them across these question types:
+Generate exactly ${ask} question(s) from the source document above. Distribute them across these question types:
 ${typeList}
-${focusLine}${coverageLine}
-
-SOURCE DOCUMENT:
-"""
-${assembled.text}
-"""`;
+${focusLine}${coverageLine}`;
 
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -166,8 +171,14 @@ ${assembled.text}
       format: { type: "json_schema", schema: questionSchema },
     },
     system: GENERATION_SYSTEM,
-    messages: [{ role: "user", content: userPrompt }],
+    messages: [
+      {
+        role: "user",
+        content: cachedSourcePrompt(assembled.text, instructions, CACHE_TTL),
+      },
+    ],
   });
+  logUsage("generate", message.usage);
 
   const parsed = parseJsonFromMessage<{ questions: RawQuestion[] }>(
     message.content,
@@ -337,6 +348,8 @@ Grade the learner's answer now.`;
     messages: [{ role: "user", content: userPrompt }],
   });
 
+  logUsage("grade", message.usage);
+
   const raw = parseJsonFromMessage<Omit<Feedback, "score">>(message.content);
   const score = raw.criteria.reduce(
     (s, c) => s + Math.max(0, Math.min(c.points_awarded, c.points_possible)),
@@ -408,10 +421,15 @@ export async function generateOverview(source: string): Promise<Overview> {
     messages: [
       {
         role: "user",
-        content: `Write didactic study notes for this source.${note}\n\nSOURCE DOCUMENT:\n"""\n${assembled.text}\n"""`,
+        content: cachedSourcePrompt(
+          assembled.text,
+          `Write didactic study notes for the source document above.${note}`,
+          CACHE_TTL,
+        ),
       },
     ],
   });
+  logUsage("overview", message.usage);
 
   return parseJsonFromMessage<Overview>(message.content);
 }
