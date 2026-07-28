@@ -1,4 +1,4 @@
-import type { GenerateConfig } from "./types";
+import type { GenerateConfig, SourceLink } from "./types";
 import type { MasteryMap } from "./mastery";
 import type { StreakData } from "./streak";
 
@@ -10,6 +10,8 @@ export interface HistoryItem {
   config: GenerateConfig;
   createdAt: number;
   lastScorePct?: number;
+  /** Web pages a "Research a topic" session drew from (attribution). */
+  sources?: SourceLink[];
 }
 
 export interface Group {
@@ -74,7 +76,12 @@ export function ensureDefaultGroup(lib: Library): Library {
  */
 export function upsertItem(
   lib: Library,
-  input: { title: string; source: string; config: GenerateConfig },
+  input: {
+    title: string;
+    source: string;
+    config: GenerateConfig;
+    sources?: SourceLink[];
+  },
 ): { lib: Library; id: string } {
   const base = ensureDefaultGroup(lib);
   const existing = Object.values(base.items).find(
@@ -88,6 +95,8 @@ export function upsertItem(
         title: input.title,
         config: input.config,
         createdAt: Date.now(),
+        // Keep prior attribution if this re-study didn't supply any.
+        sources: input.sources ?? existing.sources,
       },
     };
     return { lib: { ...base, items }, id: existing.id };

@@ -7,6 +7,7 @@ import type {
   PracticeMode,
   Question,
   QuestionType,
+  SourceLink,
   SourceMeta,
 } from "@/lib/types";
 import { QUESTION_TYPE_LABELS } from "@/lib/types";
@@ -42,7 +43,12 @@ interface ResumeInfo {
 }
 
 interface Props {
-  onReady: (source: string, meta: SourceMeta, config: GenerateConfig) => void;
+  onReady: (
+    source: string,
+    meta: SourceMeta,
+    config: GenerateConfig,
+    sources?: SourceLink[],
+  ) => void;
   onTryDemo: () => void;
   onImportDeck: (questions: Question[], title: string) => void;
   onOpenHistory: () => void;
@@ -182,7 +188,12 @@ export default function SetupScreen({
 
   function start() {
     if (!source || !meta) return;
-    onReady(source, meta, { difficulty, count, types, focus, mode });
+    onReady(
+      source,
+      meta,
+      { difficulty, count, types, focus, mode },
+      tab === "topic" && sources.length ? sources : undefined,
+    );
   }
 
   function studyDeck() {

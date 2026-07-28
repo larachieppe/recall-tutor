@@ -11,6 +11,7 @@ import type {
   Feedback,
   GenerateConfig,
   Question,
+  SourceLink,
   SourceMeta,
 } from "@/lib/types";
 import { reducer, initialState } from "@/lib/study-machine";
@@ -153,11 +154,17 @@ export default function Home() {
   }
 
   /** Save the input to history (dedupes) and start a study round. */
-  function startStudy(src: string, meta: SourceMeta, cfg: GenerateConfig) {
+  function startStudy(
+    src: string,
+    meta: SourceMeta,
+    cfg: GenerateConfig,
+    sources?: SourceLink[],
+  ) {
     const { lib, id } = upsertItem(loadLibrary(), {
       title: meta.title,
       source: src,
       config: cfg,
+      sources,
     });
     saveLibrary(lib);
     dispatch({
@@ -171,8 +178,13 @@ export default function Home() {
     runGeneration(cfg, src, true);
   }
 
-  function handleReady(src: string, m: SourceMeta, cfg: GenerateConfig) {
-    startStudy(src, m, cfg);
+  function handleReady(
+    src: string,
+    m: SourceMeta,
+    cfg: GenerateConfig,
+    sources?: SourceLink[],
+  ) {
+    startStudy(src, m, cfg, sources);
   }
 
   /** Study an imported flashcard deck directly — no generation, no key. */

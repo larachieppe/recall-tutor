@@ -86,6 +86,12 @@ export interface SourceMeta {
   length: number;
 }
 
+/** A web page a "Research a topic" session drew from (kept for attribution). */
+export interface SourceLink {
+  title: string;
+  url: string;
+}
+
 export interface OverviewConcept {
   term: string;
   explanation: string;

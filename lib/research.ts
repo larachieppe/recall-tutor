@@ -1,4 +1,5 @@
 import { anthropic, CACHE_TTL, logUsage, MODEL } from "./anthropic";
+import type { SourceLink } from "./types";
 
 /**
  * Research a topic with the web-search server tool: Claude runs several
@@ -11,10 +12,7 @@ import { anthropic, CACHE_TTL, logUsage, MODEL } from "./anthropic";
  * server tool), so it's verified structurally against a mock API.
  */
 
-export interface SourceLink {
-  title: string;
-  url: string;
-}
+export type { SourceLink };
 
 export interface ResearchResult {
   text: string;

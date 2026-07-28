@@ -463,7 +463,9 @@ function ItemRow({
   const typeSummary = item.config.types
     .map((t) => QUESTION_TYPE_LABELS[t])
     .join(", ");
+  const sources = item.sources ?? [];
   return (
+    <>
     <div
       ref={rowRef}
       className="flex items-center gap-2 rounded-xl border px-2.5 py-2.5 transition"
@@ -503,6 +505,9 @@ function ItemRow({
         <div className="mt-0.5 truncate text-[12px]" style={{ color: "var(--muted)" }}>
           {date} · {item.config.count} q · {item.config.difficulty}
           {typeSummary ? ` · ${typeSummary}` : ""}
+          {item.sources && item.sources.length > 0
+            ? ` · 🔎 ${item.sources.length} source${item.sources.length === 1 ? "" : "s"}`
+            : ""}
         </div>
       </button>
 
@@ -523,5 +528,32 @@ function ItemRow({
         ✕
       </button>
     </div>
+    {sources.length > 0 && (
+      <ul
+        className="mb-1 mt-1 space-y-0.5 pl-10 pr-2"
+        aria-label="Researched sources"
+      >
+        {sources.slice(0, 4).map((s) => (
+          <li key={s.url} className="truncate text-[12px]">
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+              style={{ color: "var(--muted)" }}
+              title={s.url}
+            >
+              {s.title}
+            </a>
+          </li>
+        ))}
+        {sources.length > 4 && (
+          <li className="text-[12px]" style={{ color: "var(--muted)" }}>
+            +{sources.length - 4} more
+          </li>
+        )}
+      </ul>
+    )}
+    </>
   );
 }
