@@ -99,9 +99,15 @@ export default function SetupScreen({
     // arrive when the app is closed (signed-in users get personalized ones).
     if (pushConfiguredClient()) await enablePush();
   }
-  const [tab, setTab] = useState<"link" | "file" | "text" | "deck">("link");
+  const [tab, setTab] = useState<
+    "link" | "topic" | "file" | "text" | "deck"
+  >("link");
   const [url, setUrl] = useState("");
   const [pasteText, setPasteText] = useState("");
+  const [topic, setTopic] = useState("");
+  const [researching, setResearching] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const [sources, setSources] = useState<{ title: string; url: string }[]>([]);
   const [deckText, setDeckText] = useState("");
   const [deckError, setDeckError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -204,6 +210,30 @@ export default function SetupScreen({
     }
   }
 
+  async function research() {
+    setResearchError(null);
+    setSource("");
+    setMeta(null);
+    setSources([]);
+    setResearching(true);
+    try {
+      const res = await fetch("/api/research", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Research failed.");
+      setSource(data.text);
+      setMeta({ title: data.title, length: data.length });
+      setSources(data.sources ?? []);
+    } catch (e) {
+      setResearchError(e instanceof Error ? e.message : "Research failed.");
+    } finally {
+      setResearching(false);
+    }
+  }
+
   const canExtract =
     tab === "link"
       ? url.trim().length > 0
@@ -263,9 +293,9 @@ export default function SetupScreen({
           className="mt-5 max-w-xl text-[16px] leading-relaxed"
           style={{ color: "var(--muted)" }}
         >
-          Paste a link — an article or a YouTube video — or upload a file. Get
-          medium-difficulty questions, answer them, and receive detailed,
-          rubric-based feedback.
+          Paste a link, upload a file, or just name a topic and Recall
+          researches it for you. Get medium-difficulty questions, answer them,
+          and receive detailed, rubric-based feedback.
         </p>
         <div className="mt-6 flex items-center gap-3">
           <button
@@ -356,9 +386,12 @@ export default function SetupScreen({
         {/* Source input */}
         <section className="panel rounded-2xl p-6">
           <SectionLabel>Source</SectionLabel>
-          <div className="mb-4 flex gap-1 rounded-full tint p-1">
+          <div className="mb-4 flex flex-wrap gap-1 rounded-2xl tint p-1">
             <TabButton active={tab === "link"} onClick={() => setTab("link")}>
-              Paste a link
+              Link
+            </TabButton>
+            <TabButton active={tab === "topic"} onClick={() => setTab("topic")}>
+              Research a topic
             </TabButton>
             <TabButton active={tab === "text"} onClick={() => setTab("text")}>
               Paste text
@@ -380,6 +413,25 @@ export default function SetupScreen({
               className="w-full rounded-xl border px-4 py-3 text-[15px] outline-none transition focus:border-[var(--blue)]"
               style={{ borderColor: "var(--line)", background: "var(--panel)" }}
             />
+          ) : tab === "topic" ? (
+            <div>
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && topic.trim().length >= 3 && !researching)
+                    research();
+                }}
+                placeholder="e.g. the Krebs cycle, or how RSA encryption works"
+                className="w-full rounded-xl border px-4 py-3 text-[15px] outline-none transition focus:border-[var(--blue)]"
+                style={{ borderColor: "var(--line)", background: "var(--panel)" }}
+              />
+              <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                Recall searches the web across several sources, writes a study
+                guide, then builds questions from it.
+              </p>
+            </div>
           ) : tab === "text" ? (
             <textarea
               value={pasteText}
@@ -449,6 +501,13 @@ export default function SetupScreen({
               <PillButton onClick={studyDeck} disabled={!deckText.trim() || busy}>
                 {busy ? busyLabel : "Study deck →"}
               </PillButton>
+            ) : tab === "topic" ? (
+              <PillButton
+                onClick={research}
+                disabled={topic.trim().length < 3 || researching}
+              >
+                {researching ? "Researching the web…" : "Research & teach →"}
+              </PillButton>
             ) : (
               <PillButton
                 onClick={extract}
@@ -465,12 +524,49 @@ export default function SetupScreen({
               {deckError}
             </p>
           )}
-          {tab !== "deck" && extractError && (
+          {tab === "topic" && researchError && (
+            <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
+              {researchError}
+            </p>
+          )}
+          {tab !== "deck" && tab !== "topic" && extractError && (
             <p className="mt-4 text-[14px]" style={{ color: "var(--danger)" }}>
               {extractError}
             </p>
           )}
-          {tab !== "deck" && meta && (
+          {tab === "topic" && meta && (
+            <div
+              className="mt-4 rounded-xl px-3 py-2.5 text-[14px] tint"
+              style={{ color: "var(--blue)" }}
+            >
+              <div className="flex items-start gap-2">
+                <span className="mt-px font-bold">✓</span>
+                <span>
+                  Researched “{meta.title}” — {sources.length} source
+                  {sources.length === 1 ? "" : "s"}, {meta.length.toLocaleString()}{" "}
+                  characters. Set your options and generate below.
+                </span>
+              </div>
+              {sources.length > 0 && (
+                <ul className="mt-2 space-y-1 pl-6">
+                  {sources.slice(0, 6).map((s) => (
+                    <li key={s.url} className="truncate text-[12px]">
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        {s.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {tab !== "deck" && tab !== "topic" && meta && (
             <div
               className="mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-[14px] tint"
               style={{ color: "var(--blue)" }}
@@ -608,7 +704,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className="flex-1 rounded-full px-3 py-2 text-[14px] font-semibold transition"
+      className="grow rounded-full px-3 py-2 text-[13px] font-semibold transition"
       style={{
         background: active ? "var(--blue)" : "transparent",
         color: active ? "#ffffff" : "var(--muted)",

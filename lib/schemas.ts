@@ -25,6 +25,14 @@ export const summaryInput = z.object({
   source: z.string().min(120, "Source text is too short to summarize."),
 });
 
+export const researchInput = z.object({
+  topic: z
+    .string()
+    .trim()
+    .min(3, "Give a topic of at least a few characters.")
+    .max(200, "Please keep the topic under 200 characters."),
+});
+
 const rubricCriterion = z.object({
   description: z.string(),
   points: z.number(),
